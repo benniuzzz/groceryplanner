@@ -11,6 +11,12 @@ create table if not exists items (
 
 create unique index if not exists items_name_lower_uniq on items (lower(name));
 
+-- Shared household dataset, no per-user auth: RLS off on all tables.
+alter table items disable row level security;
+alter table stock_entries disable row level security;
+alter table meals disable row level security;
+alter table allocations disable row level security;
+
 create table if not exists stock_entries (
   id uuid primary key default gen_random_uuid(),
   item_id uuid not null references items(id) on delete cascade,

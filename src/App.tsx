@@ -85,14 +85,15 @@ function SetupScreen() {
             from this project, and run it.
           </li>
           <li>
-            Copy your <b>Project URL</b> and <b>anon public key</b> (Connect
-            button, or Settings &rarr; API).
+            Copy your <b>Project URL</b> and <b>publishable key</b> (starts with{' '}
+            <code className="rounded bg-slate-100 px-1">sb_publishable_</code>).
+            Get them from the <b>Connect</b> button in the dashboard.
           </li>
           <li>
             Fill them into <code className="rounded bg-slate-100 px-1">.env.local</code>:
             <pre className="mt-2 overflow-x-auto rounded-lg bg-slate-900 p-3 text-xs text-slate-100">
 {`VITE_SUPABASE_URL=https://xxxx.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJ...`}
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...`}
             </pre>
           </li>
           <li>Restart the dev server and reload this page.</li>
