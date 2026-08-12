@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import * as api from '../lib/api'
-import { addDaysISO, formatDateTime } from '../lib/dates'
+import { formatDateTime } from '../lib/dates'
 import { fmtQty } from '../lib/utils'
 import { UNITS, type StockEntry } from '../lib/types'
 import { useAppData } from '../hooks/useAppData'
@@ -20,12 +20,6 @@ const emptyRow = (): DraftRow => ({
   unit: 'pcs',
   expiry: '',
 })
-
-const QUICK_EXPIRY = [
-  { label: '+3d', days: 3 },
-  { label: '+1w', days: 7 },
-  { label: '+1m', days: 30 },
-]
 
 export function AddGroceriesView() {
   const { items, entries, run } = useAppData()
@@ -86,55 +80,56 @@ export function AddGroceriesView() {
               key={i}
               className="grid grid-cols-2 items-start gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-[1fr_90px_100px_150px_auto]"
             >
-              <input
-                className={inputCls}
-                list="item-suggestions"
-                placeholder="Item name (e.g. Eggs)"
-                value={row.name}
-                onChange={(e) => update(i, { name: e.target.value })}
-              />
-              <input
-                className={inputCls}
-                type="number"
-                min="0.01"
-                step="any"
-                placeholder="Qty"
-                value={row.quantity}
-                onChange={(e) => update(i, { quantity: e.target.value })}
-              />
-              <select
-                className={inputCls}
-                value={row.unit}
-                onChange={(e) => update(i, { unit: e.target.value })}
-              >
-                {UNITS.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </select>
-              <div className="flex items-center gap-1">
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-slate-500">Item name</span>
+                <input
+                  className={inputCls}
+                  list="item-suggestions"
+                  placeholder="e.g. Eggs"
+                  value={row.name}
+                  onChange={(e) => update(i, { name: e.target.value })}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-slate-500">Quantity</span>
+                <input
+                  className={inputCls}
+                  type="number"
+                  min="0.01"
+                  step="any"
+                  placeholder="0"
+                  value={row.quantity}
+                  onChange={(e) => update(i, { quantity: e.target.value })}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-slate-500">Unit</span>
+                <select
+                  className={inputCls}
+                  value={row.unit}
+                  onChange={(e) => update(i, { unit: e.target.value })}
+                >
+                  {UNITS.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-slate-500">
+                  Expiry date <span className="font-normal text-slate-400">(optional)</span>
+                </span>
                 <input
                   className={`${inputCls} w-full`}
                   type="date"
                   value={row.expiry}
                   onChange={(e) => update(i, { expiry: e.target.value })}
                 />
-                {QUICK_EXPIRY.map((q) => (
-                  <button
-                    key={q.label}
-                    type="button"
-                    className="rounded-md border border-slate-200 px-1.5 py-1 text-xs text-slate-500 hover:bg-slate-50"
-                    onClick={() => update(i, { expiry: addDaysISO(q.days) })}
-                    title={`Set expiry to ${q.label}`}
-                  >
-                    {q.label}
-                  </button>
-                ))}
-              </div>
+              </label>
               <button
                 type="button"
-                className="rounded-lg px-2 py-2 text-sm text-slate-400 hover:bg-red-50 hover:text-red-600"
+                className="self-end rounded-lg px-2 py-2 text-sm text-slate-400 hover:bg-red-50 hover:text-red-600"
                 onClick={() => removeRow(i)}
                 disabled={rows.length === 1}
                 title="Remove row"
