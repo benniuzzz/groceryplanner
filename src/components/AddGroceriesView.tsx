@@ -22,14 +22,16 @@ const emptyRow = (): DraftRow => ({
 })
 
 export function AddGroceriesView() {
-  const { items, entries, run } = useAppData()
+  const { entries, run } = useAppData()
   const [rows, setRows] = useState<DraftRow[]>([emptyRow()])
   const [message, setMessage] = useState<string | null>(null)
 
-  const suggestions = useMemo(
-    () => items.map((i) => i.name).sort((a, b) => a.localeCompare(b)),
-    [items],
-  )
+  const suggestions = useMemo(() => {
+    const names = new Set(
+      entries.map((e) => e.items?.name).filter((n): n is string => Boolean(n)),
+    )
+    return [...names].sort((a, b) => a.localeCompare(b))
+  }, [entries])
 
   const update = (index: number, patch: Partial<DraftRow>) => {
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)))
