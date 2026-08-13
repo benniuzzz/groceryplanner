@@ -121,7 +121,13 @@ export function PlannerView() {
                           allocationCount={allocationCount(meal.id)}
                           selected={meal.id === selectedMealId}
                           onSelect={() => setSelectedMealId(meal.id)}
-                          onCook={() => void run(() => api.markCooked(meal.id))}
+                          onToggleCook={() =>
+                            void run(() =>
+                              meal.cooked
+                                ? api.markUncooked(meal.id)
+                                : api.markCooked(meal.id),
+                            )
+                          }
                           onDelete={() => {
                             if (confirm(`Delete meal "${meal.name}"?`)) {
                               if (selectedMealId === meal.id)

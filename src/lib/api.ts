@@ -90,6 +90,11 @@ export async function markCooked(id: string): Promise<void> {
   if (error) throw error
 }
 
+export async function markUncooked(id: string): Promise<void> {
+  const { error } = await supabase.rpc('uncook_meal', { p_meal_id: id })
+  if (error) throw error
+}
+
 export async function clearUncookedMeals(): Promise<void> {
   const { error } = await supabase.from('meals').delete().eq('cooked', false)
   if (error) throw error

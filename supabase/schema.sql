@@ -46,6 +46,25 @@ create table if not exists allocations (
   unique (meal_id, item_id, unit)
 );
 
+-- Logs exactly what cook_meal deducted from stock, so uncook_meal can
+-- restore the original stock_entries (snapshotted attributes). stock_entry_id
+-- uses on delete set null so the log survives the entry being deleted.
+create table if not exists meal_consumption (
+  id uuid primary key default gen_random_uuid(),
+  meal_id uuid not null references meals(id) on delete cascade,
+  stock_entry_id uuid references stock_entries(id) on delete set null,
+  item_id uuid not null,
+  unit text not null,
+  quantity double precision not null check (quantity > 0),
+  expiry_date date,
+  added_at timestamptz not null default now(),
+  consumed_at timestamptz not null default now()
+);
+
+create index if not exists meal_consumption_meal_idx on meal_consumption (meal_id);
+
+alter table meal_consumption disable row level security;
+
 -- Returns the item id for a name, creating the item if it does not exist yet.
 create or replace function get_or_create_item(p_name text)
 returns uuid
@@ -65,7 +84,8 @@ end;
 $$;
 
 -- Marks a meal as cooked and deducts its allocated amounts from stock,
--- consuming entries that expire soonest first.
+-- consuming entries that expire soonest first. Each deduction is logged to
+-- meal_consumption so it can be exactly restored by uncook_meal.
 create or replace function cook_meal(p_meal_id uuid)
 returns void
 language plpgsql
@@ -87,7 +107,7 @@ begin
   loop
     remaining := a.quantity;
     for e in
-      select id, quantity
+      select id, quantity, expiry_date, added_at
       from stock_entries
       where item_id = a.item_id and unit = a.unit
       order by expiry_date asc nulls last, added_at asc
@@ -95,6 +115,10 @@ begin
     loop
       exit when remaining <= 0;
       take := least(e.quantity, remaining);
+      insert into meal_consumption
+        (meal_id, stock_entry_id, item_id, unit, quantity, expiry_date, added_at)
+      values
+        (p_meal_id, e.id, a.item_id, a.unit, take, e.expiry_date, e.added_at);
       if take >= e.quantity then
         delete from stock_entries where id = e.id;
       else
@@ -106,5 +130,31 @@ begin
 end;
 $$;
 
+-- Marks a meal as uncooked and restores the exact stock entries that
+-- cook_meal consumed (same item, unit, quantity, expiry and added_at).
+create or replace function uncook_meal(p_meal_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  c record;
+begin
+  for c in
+    select item_id, unit, quantity, expiry_date, added_at
+    from meal_consumption
+    where meal_id = p_meal_id
+  loop
+    insert into stock_entries (item_id, unit, quantity, expiry_date, added_at)
+    values (c.item_id, c.unit, c.quantity, c.expiry_date, c.added_at);
+  end loop;
+
+  delete from meal_consumption where meal_id = p_meal_id;
+  update meals set cooked = false where id = p_meal_id and cooked = true;
+end;
+$$;
+
 grant execute on function get_or_create_item(text) to anon, authenticated;
 grant execute on function cook_meal(uuid) to anon, authenticated;
+grant execute on function uncook_meal(uuid) to anon, authenticated;
