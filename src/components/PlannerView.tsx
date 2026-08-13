@@ -24,6 +24,8 @@ export function PlannerView() {
   } | null>(null)
   const [newMealName, setNewMealName] = useState('')
 
+  const today = (new Date().getDay() + 6) % 7
+
   const inventory = useMemo(
     () => computeInventory(entries, allocations, meals),
     [entries, allocations, meals],
@@ -72,20 +74,29 @@ export function PlannerView() {
         </div>
 
         <div className="mt-4 overflow-x-auto pb-2">
-          <div className="grid min-w-[860px] grid-cols-[70px_repeat(7,minmax(0,1fr))] gap-1.5">
-            <div />
-            {DAYS.map((d) => (
+          <div className="grid min-w-[1400px] grid-cols-[70px_repeat(7,190px)] gap-1.5">
+            <div className="sticky left-0 z-10 rounded-lg bg-slate-100" />
+            {DAYS.map((d, day) => (
               <div
                 key={d}
-                className="rounded-lg bg-slate-100 py-1.5 text-center text-sm font-semibold text-slate-600"
+                className={`flex flex-col items-center gap-1 rounded-lg py-1.5 text-sm font-semibold ${
+                  day === today
+                    ? 'bg-amber-400 text-amber-950 shadow-sm'
+                    : 'bg-slate-100 text-slate-600'
+                }`}
               >
+                {day === today && (
+                  <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                    Today
+                  </span>
+                )}
                 {d}
               </div>
             ))}
 
             {SLOTS.map((slot) => (
               <Fragment key={slot}>
-                <div className="flex items-center justify-center rounded-lg bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <div className="sticky left-0 z-10 flex items-center justify-center rounded-lg bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   {SLOT_LABELS[slot]}
                 </div>
                 {DAYS.map((_, day) => {
@@ -97,7 +108,11 @@ export function PlannerView() {
                   return (
                     <div
                       key={`${slot}-${day}`}
-                      className="min-h-[90px] space-y-1.5 rounded-lg border border-slate-200 bg-slate-50/50 p-1.5"
+                      className={`min-h-[130px] space-y-1.5 rounded-lg border p-2 ${
+                        day === today
+                          ? 'border-amber-300 bg-amber-50/70 ring-1 ring-amber-300'
+                          : 'border-slate-200 bg-slate-50/50'
+                      }`}
                     >
                       {cellMeals.map((meal) => (
                         <MealCard
@@ -152,7 +167,7 @@ export function PlannerView() {
                         </div>
                       ) : (
                         <button
-                          className="w-full rounded-md border border-dashed border-slate-300 py-1 text-xs text-slate-400 hover:border-emerald-400 hover:text-emerald-600"
+                          className="w-full rounded-md border border-dashed border-slate-300 py-1.5 text-sm text-slate-400 hover:border-emerald-400 hover:text-emerald-600"
                           onClick={() => {
                             setAddingCell({ day, slot })
                             setNewMealName('')
