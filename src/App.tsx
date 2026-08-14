@@ -5,14 +5,8 @@ import { useAppData } from './hooks/useAppData'
 import { AddGroceriesView } from './components/AddGroceriesView'
 import { InventoryView } from './components/InventoryView'
 import { PlannerView } from './components/PlannerView'
-
-type Tab = 'add' | 'inventory' | 'planner'
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'add', label: 'Add Groceries' },
-  { id: 'inventory', label: 'Inventory' },
-  { id: 'planner', label: 'Meal Planner' },
-]
+import { Sidebar } from './components/Sidebar'
+import type { Tab } from './components/nav'
 
 export default function App() {
   if (!isSupabaseConfigured) return <SetupScreen />
@@ -25,47 +19,81 @@ export default function App() {
 
 function Shell() {
   const [tab, setTab] = useState<Tab>('add')
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('sidebar-collapsed') === '1'
+    } catch {
+      return false
+    }
+  })
+  const [mobileOpen, setMobileOpen] = useState(false)
   const { loading, error } = useAppData()
 
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-4">
-          <h1 className="text-xl font-bold text-emerald-700">Grocery Planner</h1>
-          <nav className="flex gap-1">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                  tab === t.id
-                    ? 'bg-emerald-600 text-white'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-      </header>
+  const toggleCollapse = () => {
+    setCollapsed((current) => {
+      const next = !current
+      try {
+        localStorage.setItem('sidebar-collapsed', next ? '1' : '0')
+      } catch {
+        // ignore storage failures (e.g. blocked storage)
+      }
+      return next
+    })
+  }
 
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-        {loading ? (
-          <p className="text-sm text-slate-500">Loading…</p>
-        ) : (
-          <>
-            {tab === 'add' && <AddGroceriesView />}
-            {tab === 'inventory' && <InventoryView />}
-            {tab === 'planner' && <PlannerView />}
-          </>
-        )}
-      </main>
+  return (
+    <div className="flex min-h-screen bg-slate-50 text-slate-900">
+      <Sidebar
+        active={tab}
+        onSelect={setTab}
+        collapsed={collapsed}
+        onToggleCollapse={toggleCollapse}
+        mobileOpen={mobileOpen}
+        onCloseMobile={() => setMobileOpen(false)}
+      />
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 md:hidden">
+          <button
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open menu"
+            className="rounded-lg px-1.5 py-1 text-slate-600 hover:bg-slate-100"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5"
+              aria-hidden="true"
+            >
+              <path d="M4 6h16" />
+              <path d="M4 12h16" />
+              <path d="M4 18h16" />
+            </svg>
+          </button>
+          <h1 className="text-lg font-bold text-emerald-700">Grocery Planner</h1>
+        </div>
+
+        <main className="flex-1 px-4 py-6 lg:px-8">
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+          {loading ? (
+            <p className="text-sm text-slate-500">Loading…</p>
+          ) : (
+            <>
+              {tab === 'add' && <AddGroceriesView />}
+              {tab === 'inventory' && <InventoryView />}
+              {tab === 'planner' && <PlannerView />}
+            </>
+          )}
+        </main>
+      </div>
     </div>
   )
 }

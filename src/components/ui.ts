@@ -9,3 +9,12 @@ export const btnSecondary =
 
 export const btnDanger =
   'rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50'
+
+export const navItemBase =
+  'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors'
+
+export const navItemActive =
+  'bg-emerald-600 text-white hover:bg-emerald-600'
+
+export const navItemInactive =
+  'text-slate-600 hover:bg-slate-100 hover:text-slate-900'

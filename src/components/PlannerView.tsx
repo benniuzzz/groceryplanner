@@ -13,6 +13,7 @@ import { useAppData } from '../hooks/useAppData'
 import { MealCard } from './MealCard'
 import { AllocationModal } from './AllocationModal'
 import { ExpiryBadge } from './ExpiryBadge'
+import { TodayView } from './TodayView'
 import { btnDanger, inputCls } from './ui'
 
 export function PlannerView() {
@@ -40,6 +41,8 @@ export function PlannerView() {
 
   const allocationCount = (mealId: string) =>
     allocations.filter((a) => a.meal_id === mealId).length
+
+  const todayMeals = meals.filter((m) => m.day === today)
 
   const addMeal = async (day: number, slot: MealSlot) => {
     const name = newMealName.trim()
@@ -73,8 +76,10 @@ export function PlannerView() {
           </button>
         </div>
 
+        <TodayView meals={todayMeals} allocations={allocations} />
+
         <div className="mt-4 overflow-x-auto pb-2">
-          <div className="grid min-w-[1400px] grid-cols-[70px_repeat(7,190px)] gap-1.5">
+          <div className="grid min-w-[1400px] grid-cols-[70px_repeat(7,minmax(180px,1fr))] gap-1.5">
             <div className="sticky left-0 z-10 rounded-lg bg-slate-100" />
             {DAYS.map((d, day) => (
               <div
@@ -85,12 +90,12 @@ export function PlannerView() {
                     : 'bg-slate-100 text-slate-600'
                 }`}
               >
+                {d}
                 {day === today && (
                   <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
                     Today
                   </span>
                 )}
-                {d}
               </div>
             ))}
 
