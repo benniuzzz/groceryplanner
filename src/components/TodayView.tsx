@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { formatDateTime } from '../lib/dates'
 import { fmtQty } from '../lib/utils'
 import {
@@ -41,15 +42,81 @@ export function TodayView({
   allocations: Allocation[]
 }) {
   const today = new Date()
+  const dateLabel = formatDateTime(today.toISOString())
   const slotMeals = (slot: MealSlot) =>
     meals.filter((m) => m.slot === slot)
+  const [copied, setCopied] = useState(false)
+
+  const text = useMemo(
+    () => buildTodayText(meals, allocations, dateLabel),
+    [meals, allocations, dateLabel],
+  )
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
 
   return (
     <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-      <div className="flex items-center gap-2">
-        <span className="h-4 w-1 rounded-full bg-emerald-600" />
-        <h3 className="text-sm font-semibold text-emerald-700">Today</h3>
-        <span className="text-xs text-slate-500">{formatDateTime(today.toISOString())}</span>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="h-4 w-1 rounded-full bg-emerald-600" />
+          <h3 className="text-sm font-semibold text-emerald-700">Today</h3>
+          <span className="text-xs text-slate-500">{dateLabel}</span>
+        </div>
+        <div className="group relative">
+          <button
+            type="button"
+            aria-label="Copy today's meals"
+            onClick={() => void copy()}
+            className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-emerald-700 hover:bg-emerald-100"
+          >
+            {copied ? (
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+                aria-hidden="true"
+              >
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            ) : (
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+                aria-hidden="true"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+            )}
+          </button>
+          <span className="pointer-events-none absolute -top-8 right-0 z-10 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-normal text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
+            {copied ? 'Copied!' : "Copy today's meals"}
+          </span>
+        </div>
       </div>
 
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -120,4 +187,34 @@ export function TodayView({
 
 function mealAllocations(allocations: Allocation[], mealId: string) {
   return allocations.filter((a) => a.meal_id === mealId)
+}
+
+function buildTodayText(
+  meals: Meal[],
+  allocations: Allocation[],
+  dateLabel: string,
+): string {
+  const lines: string[] = []
+  lines.push(`Today \u00B7 ${dateLabel}`)
+
+  for (const slot of SLOTS) {
+    const slotMeals = meals.filter((m) => m.slot === slot)
+    lines.push('')
+    lines.push(`${SLOT_LABELS[slot]}:`)
+    if (slotMeals.length === 0) {
+      lines.push('  No meal planned')
+    }
+    for (const meal of slotMeals) {
+      lines.push(`  - ${meal.name}`)
+      const allocs = mealAllocations(allocations, meal.id)
+      if (allocs.length === 0) {
+        lines.push('      No ingredients allocated')
+      }
+      for (const a of allocs) {
+        lines.push(`      - ${a.items?.name ?? 'Unknown'}: ${fmtQty(a.quantity)} ${a.unit}`)
+      }
+    }
+  }
+
+  return lines.join('\n')
 }
