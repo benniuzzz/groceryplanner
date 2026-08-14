@@ -14,7 +14,7 @@ import { MealCard } from './MealCard'
 import { AllocationModal } from './AllocationModal'
 import { ExpiryBadge } from './ExpiryBadge'
 import { TodayView } from './TodayView'
-import { btnDanger, inputCls } from './ui'
+import { inputCls } from './ui'
 
 export function PlannerView() {
   const { meals, allocations, entries, run } = useAppData()
@@ -60,25 +60,82 @@ export function PlannerView() {
     if (ok) setSelectedMealId(null)
   }
 
+  const clearCooked = async () => {
+    if (!confirm('Remove all cooked meals and their allocations?')) return
+    const ok = await run(() => api.clearCookedMeals())
+    if (ok) setSelectedMealId(null)
+  }
+
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
       <section className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">Meal planner</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Plan the week. Click a meal to allocate groceries; mark it cooked
-              to consume them from inventory.
-            </p>
-          </div>
-          <button className={btnDanger} onClick={() => void clearWeek()}>
-            Clear uncooked meals
-          </button>
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Meal planner</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Plan the week. Click a meal to allocate groceries; mark it cooked
+            to consume them from inventory.
+          </p>
         </div>
 
         <TodayView meals={todayMeals} allocations={allocations} />
 
-        <div className="mt-4 overflow-x-auto pb-2">
+        <div className="mt-4">
+          <div className="mb-2 flex items-center justify-end gap-2">
+            <div className="group relative">
+              <button
+                type="button"
+                aria-label="Clear uncooked meals"
+                onClick={() => void clearWeek()}
+                className="rounded-lg border border-red-200 bg-white p-2 text-red-600 hover:bg-red-50"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                  aria-hidden="true"
+                >
+                  <path d="M19 20H11" />
+                  <path d="M21 16l-7-7-6 6-4 4V9a1 1 0 0 1 .29-.71l9.5-9.5a1 1 0 0 1 1.41 0l5.6 5.6a1 1 0 0 1 0 1.41L15 12l6 6z" />
+                </svg>
+              </button>
+              <span className="pointer-events-none absolute -top-8 right-0 z-10 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
+                Clear uncooked meals
+              </span>
+            </div>
+            <div className="group relative">
+              <button
+                type="button"
+                aria-label="Clear cooked meals"
+                onClick={() => void clearCooked()}
+                className="rounded-lg border border-red-200 bg-white p-2 text-red-600 hover:bg-red-50"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                  aria-hidden="true"
+                >
+                  <path d="M3 6h18" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                </svg>
+              </button>
+              <span className="pointer-events-none absolute -top-8 right-0 z-10 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
+                Clear cooked meals
+              </span>
+            </div>
+          </div>
+          <div className="overflow-x-auto pb-2">
           <div className="grid min-w-[1400px] grid-cols-[70px_repeat(7,minmax(180px,1fr))] gap-1.5">
             <div className="sticky left-0 z-10 rounded-lg bg-slate-100" />
             {DAYS.map((d, day) => (
@@ -192,6 +249,7 @@ export function PlannerView() {
                 })}
               </Fragment>
             ))}
+          </div>
           </div>
         </div>
       </section>

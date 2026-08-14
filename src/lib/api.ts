@@ -100,6 +100,11 @@ export async function clearUncookedMeals(): Promise<void> {
   if (error) throw error
 }
 
+export async function clearCookedMeals(): Promise<void> {
+  const { error } = await supabase.from('meals').delete().eq('cooked', true)
+  if (error) throw error
+}
+
 export async function upsertAllocation(
   mealId: string,
   itemId: string,
