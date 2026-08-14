@@ -1,5 +1,7 @@
 import { NAV_ITEMS, type Tab } from './nav'
 import { navItemActive, navItemBase, navItemInactive } from './ui'
+import type { Theme } from '../hooks/useTheme'
+import { ThemeToggle } from './ThemeToggle'
 
 export function Sidebar({
   active,
@@ -8,6 +10,8 @@ export function Sidebar({
   onToggleCollapse,
   mobileOpen,
   onCloseMobile,
+  theme,
+  onToggleTheme,
 }: {
   active: Tab
   onSelect: (tab: Tab) => void
@@ -15,6 +19,8 @@ export function Sidebar({
   onToggleCollapse: () => void
   mobileOpen: boolean
   onCloseMobile: () => void
+  theme: Theme
+  onToggleTheme: () => void
 }) {
   return (
     <>
@@ -25,12 +31,12 @@ export function Sidebar({
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white transition-transform duration-200 md:static md:translate-x-0 md:transition-[width] ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white transition-transform duration-200 dark:border-slate-800 dark:bg-slate-900 md:static md:translate-x-0 md:transition-[width] ${
           collapsed ? 'md:w-14' : 'md:w-64'
         } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div
-          className={`flex h-14 items-center gap-3 border-b border-slate-200 ${
+          className={`flex h-14 items-center gap-3 border-b border-slate-200 dark:border-slate-800 ${
             collapsed ? 'md:justify-center md:px-0' : ''
           } px-4`}
         >
@@ -50,7 +56,7 @@ export function Sidebar({
             </svg>
           </span>
           <h1
-            className={`truncate text-lg font-bold text-emerald-700 ${
+            className={`truncate text-lg font-bold text-emerald-700 dark:text-emerald-400 ${
               collapsed ? 'md:hidden' : ''
             }`}
           >
@@ -87,9 +93,11 @@ export function Sidebar({
           })}
         </nav>
 
+        <ThemeToggle theme={theme} onToggle={onToggleTheme} collapsed={collapsed} />
+
         <button
           onClick={onToggleCollapse}
-          className="hidden items-center gap-3 border-t border-slate-200 px-4 py-3 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 md:flex"
+          className="hidden items-center gap-3 border-t border-slate-200 px-4 py-3 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 md:flex"
         >
           <svg
             viewBox="0 0 24 24"

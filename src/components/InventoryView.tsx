@@ -47,15 +47,15 @@ export function InventoryView() {
     <section>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Inventory</h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Inventory</h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Everything currently in stock, accumulated over your shopping trips.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
+            className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-400"
             title="Clear all inventory"
             onClick={() => {
               if (
@@ -75,17 +75,17 @@ export function InventoryView() {
               <path d="M14 11v6" />
             </svg>
           </button>
-          <label className="flex items-center gap-2 text-sm text-slate-600">
+          <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
             <input
               type="checkbox"
               checked={hideZero}
               onChange={(e) => setHideZero(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 accent-emerald-600"
+              className="h-4 w-4 rounded border-slate-300 accent-emerald-600 dark:border-slate-600"
             />
             Hide used up
           </label>
           <select
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-emerald-500 focus:outline-none"
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-emerald-500"
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as SortKey)}
           >
@@ -96,10 +96,10 @@ export function InventoryView() {
         </div>
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+            <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
               <th className="px-4 py-3 font-medium">Item</th>
               <th className="px-4 py-3 font-medium">In stock</th>
               <th className="px-4 py-3 font-medium">Allocated</th>
@@ -111,7 +111,7 @@ export function InventoryView() {
           <tbody>
             {visible.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">
                   No groceries in your inventory yet. Add some from the Shopping tab.
                 </td>
               </tr>
@@ -122,25 +122,25 @@ export function InventoryView() {
               return [
                 <tr
                   key={key}
-                  className="cursor-pointer border-b border-slate-100 hover:bg-slate-50"
+                  className="cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50"
                   onClick={() => toggle(key)}
                 >
-                  <td className="px-4 py-3 font-medium text-slate-800">
+                  <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
                     {row.name}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {fmtQty(row.total)} {row.unit}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {row.allocated > 0 ? `${fmtQty(row.allocated)} ${row.unit}` : '—'}
                   </td>
-                  <td className="px-4 py-3 font-semibold text-emerald-700">
+                  <td className="px-4 py-3 font-semibold text-emerald-700 dark:text-emerald-400">
                     {fmtQty(row.leftover)} {row.unit}
                   </td>
                   <td className="px-4 py-3">
                     <ExpiryBadge date={row.earliestExpiry} />
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-400">
+                  <td className="px-4 py-3 text-right text-slate-400 dark:text-slate-500">
                     {row.entries.length > 1
                       ? isOpen
                         ? '▴'
@@ -149,9 +149,9 @@ export function InventoryView() {
                   </td>
                 </tr>,
                 isOpen ? (
-                  <tr key={`${key}-detail`} className="border-b border-slate-100 bg-slate-50/60">
+                  <tr key={`${key}-detail`} className="border-b border-slate-100 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-800/40">
                     <td colSpan={6} className="px-4 py-3">
-                      <div className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                      <div className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
                         Shopping batches
                       </div>
                       <ul className="mt-2 space-y-1.5">
@@ -160,9 +160,9 @@ export function InventoryView() {
                             key={e.id}
                             className="flex flex-wrap items-center justify-between gap-2 text-sm"
                           >
-                            <span className="text-slate-600">
+                            <span className="text-slate-600 dark:text-slate-300">
                               {fmtQty(e.quantity)} {row.unit}
-                              <span className="text-slate-400">
+                              <span className="text-slate-400 dark:text-slate-500">
                                 {' '}
                                 &middot; added{' '}
                                 {new Date(e.added_at).toLocaleDateString(undefined, {

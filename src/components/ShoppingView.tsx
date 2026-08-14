@@ -75,19 +75,19 @@ export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void })
   return (
     <div className="grid gap-8">
       <section>
-        <h2 className="text-lg font-semibold text-slate-900">Shopping</h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Shopping</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Log what you bought. Items can only be chosen from your configured
           list; each one carries its own unit automatically.
         </p>
 
         {options.length === 0 ? (
-          <div className="mt-4 rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-400">
+          <div className="mt-4 rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
             No allowed items yet. Configure the list of items you want to buy
             in{' '}
             <button
               onClick={onOpenSettings}
-              className="font-medium text-emerald-700 underline"
+              className="font-medium text-emerald-700 underline dark:text-emerald-400"
             >
               Settings
             </button>
@@ -99,10 +99,10 @@ export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void })
               {rows.map((row, i) => (
                 <div
                   key={i}
-                  className="grid grid-cols-2 items-start gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-[1fr_90px_70px_150px_110px_auto]"
+                  className="grid grid-cols-2 items-start gap-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-[1fr_90px_70px_150px_110px_auto]"
                 >
                   <label className="flex flex-col gap-1">
-                    <span className="text-xs font-medium text-slate-500">Item name</span>
+                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Item name</span>
                     <select
                       className={inputCls}
                       value={row.itemId}
@@ -117,7 +117,7 @@ export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void })
                     </select>
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span className="text-xs font-medium text-slate-500">Quantity</span>
+                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Quantity</span>
                     <input
                       className={inputCls}
                       type="number"
@@ -129,14 +129,14 @@ export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void })
                     />
                   </label>
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs font-medium text-slate-500">Unit</span>
-                    <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Unit</span>
+                    <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                       {row.itemId ? selectedUnit(row.itemId) : '—'}
                     </span>
                   </div>
                   <label className="flex flex-col gap-1">
                     <span className="text-xs font-medium text-slate-500">
-                      Expiry date <span className="font-normal text-slate-400">(optional)</span>
+                      Expiry date <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
                     </span>
                     <input
                       className={`${inputCls} w-full`}
@@ -147,7 +147,7 @@ export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void })
                   </label>
                   <label className="flex flex-col gap-1">
                     <span className="text-xs font-medium text-slate-500">
-                      Cost <span className="font-normal text-slate-400">(optional)</span>
+                      Cost <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
                     </span>
                     <input
                       className={`${inputCls} w-full`}
@@ -161,7 +161,7 @@ export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void })
                   </label>
                   <button
                     type="button"
-                    className="self-end rounded-lg px-2 py-2 text-sm text-slate-400 hover:bg-red-50 hover:text-red-600"
+                    className="self-end rounded-lg px-2 py-2 text-sm text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-400"
                     onClick={() => removeRow(i)}
                     disabled={rows.length === 1}
                     title="Remove row"
@@ -181,7 +181,7 @@ export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void })
               </button>
             </div>
             {message && (
-              <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+              <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                 {message}
               </p>
             )}
@@ -216,12 +216,12 @@ function AdditionHistory({
     <section>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-md font-semibold text-slate-900">Purchase History</h3>
-          <p className="mt-0.5 text-xs text-slate-500">Every purchase you&apos;ve logged</p>
+          <h3 className="text-md font-semibold text-slate-900 dark:text-slate-100">Purchase History</h3>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Every purchase you&apos;ve logged</p>
         </div>
         <button
           type="button"
-          className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
+          className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-400"
           title="Clear all purchase history"
           onClick={() => {
             if (
@@ -244,7 +244,7 @@ function AdditionHistory({
       </div>
       <div className="mt-3 max-h-[26rem] space-y-4 overflow-y-auto pr-1">
         {groups.length === 0 && (
-          <p className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-400">
+          <p className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
             Nothing added yet.
           </p>
         )}
@@ -254,15 +254,15 @@ function AdditionHistory({
             0,
           )
           return (
-            <div key={day} className="rounded-xl border border-slate-200 bg-white p-3">
+            <div key={day} className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-baseline justify-between">
-                <span className="text-sm font-medium text-slate-700">{day}</span>
-                <span className="text-xs text-slate-400">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{day}</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500">
                   {list.length} item{list.length === 1 ? '' : 's'}
                   {subtotal > 0 && (
                     <>
                       {' '}
-                      &middot; <span className="text-slate-500">{fmtCost(subtotal)}</span>
+                      &middot; <span className="text-slate-500 dark:text-slate-400">{fmtCost(subtotal)}</span>
                     </>
                   )}
                 </span>
@@ -276,29 +276,29 @@ function AdditionHistory({
                     <span
                       className={
                         e.deleted_at || e.consumed_at
-                          ? 'text-slate-400'
-                          : 'text-slate-700'
+                          ? 'text-slate-400 dark:text-slate-500'
+                          : 'text-slate-700 dark:text-slate-200'
                       }
                     >
                       {e.items?.name ?? 'Unknown'}
-                      <span className="text-slate-400">
+                      <span className="text-slate-400 dark:text-slate-500">
                         {' '}
                         &middot; {fmtQty(e.quantity)} {e.unit}
                       </span>
                       {e.consumed_at && (
-                        <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                        <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:bg-slate-800 dark:text-slate-500">
                           consumed
                         </span>
                       )}
                       {e.deleted_at && (
-                        <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                        <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:bg-slate-800 dark:text-slate-500">
                           removed
                         </span>
                       )}
                     </span>
                     <span className="flex items-center gap-3">
                       {e.cost != null && (
-                        <span className="text-slate-600">{fmtCost(e.cost)}</span>
+                        <span className="text-slate-600 dark:text-slate-300">{fmtCost(e.cost)}</span>
                       )}
                       <ExpiryBadge date={e.expiry_date} compact />
                     </span>

@@ -20,26 +20,30 @@ export function MealCard({
       onClick={onSelect}
       className={`cursor-pointer rounded-lg border p-2 text-left text-sm transition-colors ${
         meal.cooked
-          ? 'border-slate-200 bg-slate-100 text-slate-400'
+          ? 'border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500'
           : selected
-            ? 'border-emerald-500 bg-emerald-50'
-            : 'border-slate-200 bg-white hover:border-emerald-300'
+            ? 'border-emerald-500 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-950/40'
+            : 'border-slate-200 bg-white hover:border-emerald-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-emerald-700'
       }`}
     >
-      <div className={`font-medium ${meal.cooked ? 'line-through' : 'text-slate-800'}`}>
+      <div className={`font-medium ${meal.cooked ? 'line-through' : 'text-slate-800 dark:text-slate-100'}`}>
         {meal.name}
       </div>
       <div className="mt-1 flex items-center justify-between gap-1">
         <span className="flex items-center gap-1.5">
           {allocationCount > 0 && (
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-slate-400 dark:text-slate-500">
               {allocationCount} item{allocationCount === 1 ? '' : 's'}
             </span>
           )}
         </span>
         <span className="flex items-center gap-1.5">
           <button
-            className={meal.cooked ? 'text-emerald-600' : 'text-slate-300 hover:text-emerald-600'}
+            className={
+              meal.cooked
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-slate-300 hover:text-emerald-600 dark:text-slate-600 dark:hover:text-emerald-400'
+            }
             onClick={(e) => {
               e.stopPropagation()
               onToggleCook()
@@ -58,7 +62,7 @@ export function MealCard({
             </svg>
           </button>
           <button
-            className="text-xs text-slate-300 hover:text-red-600"
+            className="text-xs text-slate-300 hover:text-red-600 dark:text-slate-600 dark:hover:text-red-400"
             onClick={(e) => {
               e.stopPropagation()
               onDelete()

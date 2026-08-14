@@ -61,20 +61,20 @@ export function AllocationModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl"
+        className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:border dark:border-slate-700 dark:bg-slate-900"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">{meal.name}</h3>
-            <p className="text-sm text-slate-500">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{meal.name}</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               {meal.cooked
                 ? 'Cooked — these groceries were consumed from inventory.'
                 : 'Allocate groceries from your inventory to this meal.'}
             </p>
           </div>
           <button
-            className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
             onClick={onClose}
           >
             &#x2715;
@@ -83,25 +83,25 @@ export function AllocationModal({
 
         <ul className="mt-4 space-y-2">
           {mealAllocations.length === 0 && (
-            <li className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-center text-sm text-slate-400">
+            <li className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-center text-sm text-slate-400 dark:border-slate-700 dark:text-slate-500">
               No groceries allocated yet.
             </li>
           )}
           {mealAllocations.map((a) => (
             <li
               key={a.id}
-              className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700"
             >
-              <span className="font-medium text-slate-800">
+              <span className="font-medium text-slate-800 dark:text-slate-100">
                 {a.items?.name ?? 'Unknown'}
-                <span className="font-normal text-slate-400">
+                <span className="font-normal text-slate-400 dark:text-slate-500">
                   {' '}
                   &middot; {fmtQty(a.quantity)} {a.unit}
                 </span>
               </span>
               {!meal.cooked && (
                 <button
-                  className="text-xs text-slate-400 hover:text-red-600"
+                  className="text-xs text-slate-400 hover:text-red-600 dark:hover:text-red-400"
                   onClick={() => void run(() => api.deleteAllocation(a.id))}
                 >
                   Remove
@@ -112,7 +112,7 @@ export function AllocationModal({
         </ul>
 
         {!meal.cooked && (
-          <div className="mt-4 rounded-xl bg-slate-50 p-3">
+          <div className="mt-4 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
             <div className="flex flex-wrap items-center gap-2">
               <select
                 className={`${inputCls} min-w-[180px] flex-1`}
@@ -151,9 +151,9 @@ export function AllocationModal({
                 Allocate
               </button>
             </div>
-            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+            {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
             {options.length === 0 && (
-              <p className="mt-2 text-sm text-slate-400">
+              <p className="mt-2 text-sm text-slate-400 dark:text-slate-500">
                 No leftovers available. Add to Shopping first.
               </p>
             )}

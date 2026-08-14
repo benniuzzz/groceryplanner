@@ -70,8 +70,8 @@ export function PlannerView() {
     <div className="flex flex-col gap-6 lg:flex-row">
       <section className="min-w-0 flex-1">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Meal planner</h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Meal planner</h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Plan the week. Click a meal to allocate groceries; mark it cooked
             to consume them from inventory.
           </p>
@@ -86,7 +86,7 @@ export function PlannerView() {
                 type="button"
                 aria-label="Clear uncooked meals"
                 onClick={() => void clearWeek()}
-                className="rounded-lg border border-red-200 bg-white p-2 text-red-600 hover:bg-red-50"
+                className="rounded-lg border border-red-200 bg-white p-2 text-red-600 hover:bg-red-50 dark:border-red-900 dark:bg-slate-900 dark:text-red-400 dark:hover:bg-red-950"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -111,7 +111,7 @@ export function PlannerView() {
                 type="button"
                 aria-label="Clear cooked meals"
                 onClick={() => void clearCooked()}
-                className="rounded-lg border border-red-200 bg-white p-2 text-red-600 hover:bg-red-50"
+                className="rounded-lg border border-red-200 bg-white p-2 text-red-600 hover:bg-red-50 dark:border-red-900 dark:bg-slate-900 dark:text-red-400 dark:hover:bg-red-950"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -137,14 +137,14 @@ export function PlannerView() {
           </div>
           <div className="overflow-x-auto pb-2">
           <div className="grid min-w-[1400px] grid-cols-[70px_repeat(7,minmax(180px,1fr))] gap-1.5">
-            <div className="sticky left-0 z-10 rounded-lg bg-slate-100" />
+            <div className="sticky left-0 z-10 rounded-lg bg-slate-100 dark:bg-slate-800" />
             {DAYS.map((d, day) => (
               <div
                 key={d}
                 className={`flex flex-col items-center gap-1 rounded-lg py-1.5 text-sm font-semibold ${
                   day === today
                     ? 'bg-amber-400 text-amber-950 shadow-sm'
-                    : 'bg-slate-100 text-slate-600'
+                    : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
                 }`}
               >
                 {d}
@@ -158,7 +158,7 @@ export function PlannerView() {
 
             {SLOTS.map((slot) => (
               <Fragment key={slot}>
-                <div className="sticky left-0 z-10 flex items-center justify-center rounded-lg bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <div className="sticky left-0 z-10 flex items-center justify-center rounded-lg bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                   {SLOT_LABELS[slot]}
                 </div>
                 {DAYS.map((_, day) => {
@@ -172,8 +172,8 @@ export function PlannerView() {
                       key={`${slot}-${day}`}
                       className={`min-h-[130px] space-y-1.5 rounded-lg border p-2 ${
                         day === today
-                          ? 'border-amber-300 bg-amber-50/70 ring-1 ring-amber-300'
-                          : 'border-slate-200 bg-slate-50/50'
+                          ? 'border-amber-300 bg-amber-50/70 ring-1 ring-amber-300 dark:border-amber-700 dark:bg-amber-950/40 dark:ring-amber-700'
+                          : 'border-slate-200 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-800/50'
                       }`}
                     >
                       {cellMeals.map((meal) => (
@@ -223,7 +223,7 @@ export function PlannerView() {
                               Add
                             </button>
                             <button
-                              className="flex-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                              className="flex-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
                               onClick={() => {
                                 setAddingCell(null)
                                 setNewMealName('')
@@ -235,7 +235,7 @@ export function PlannerView() {
                         </div>
                       ) : (
                         <button
-                          className="w-full rounded-md border border-dashed border-slate-300 py-1.5 text-sm text-slate-400 hover:border-emerald-400 hover:text-emerald-600"
+                          className="w-full rounded-md border border-dashed border-slate-300 py-1.5 text-sm text-slate-400 hover:border-emerald-400 hover:text-emerald-600 dark:border-slate-600 dark:text-slate-500 dark:hover:border-emerald-500 dark:hover:text-emerald-400"
                           onClick={() => {
                             setAddingCell({ day, slot })
                             setNewMealName('')
@@ -269,14 +269,14 @@ export function PlannerView() {
 function LeftoverSidebar({ rows }: { rows: InventoryRow[] }) {
   return (
     <aside className="w-full shrink-0 lg:w-72">
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <h3 className="text-sm font-semibold text-slate-900">Leftovers</h3>
-        <p className="mt-0.5 text-xs text-slate-500">
+      <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Leftovers</h3>
+        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
           Unallocated stock, soonest expiry first
         </p>
         <ul className="mt-3 space-y-2">
           {rows.length === 0 && (
-            <li className="text-sm text-slate-400">
+            <li className="text-sm text-slate-400 dark:text-slate-500">
               Everything is allocated or the inventory is empty.
             </li>
           )}
@@ -285,9 +285,9 @@ function LeftoverSidebar({ rows }: { rows: InventoryRow[] }) {
               key={`${r.itemId}-${r.unit}`}
               className="flex items-center justify-between gap-2 text-sm"
             >
-              <span className="min-w-0 truncate text-slate-700">
+              <span className="min-w-0 truncate text-slate-700 dark:text-slate-200">
                 {r.name}
-                <span className="text-slate-400">
+                <span className="text-slate-400 dark:text-slate-500">
                   {' '}
                   &middot; {fmtQty(r.leftover)} {r.unit}
                 </span>
