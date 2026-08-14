@@ -5,6 +5,7 @@ import { useAppData } from './hooks/useAppData'
 import { ShoppingView } from './components/ShoppingView'
 import { InventoryView } from './components/InventoryView'
 import { PlannerView } from './components/PlannerView'
+import { SettingsView } from './components/SettingsView'
 import { Sidebar } from './components/Sidebar'
 import type { Tab } from './components/nav'
 
@@ -87,9 +88,12 @@ function Shell() {
             <p className="text-sm text-slate-500">Loading…</p>
           ) : (
             <>
-              {tab === 'add' && <ShoppingView />}
+              {tab === 'add' && (
+                <ShoppingView onOpenSettings={() => setTab('settings')} />
+              )}
               {tab === 'inventory' && <InventoryView />}
               {tab === 'planner' && <PlannerView />}
+              {tab === 'settings' && <SettingsView />}
             </>
           )}
         </main>

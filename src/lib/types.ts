@@ -1,3 +1,10 @@
+export interface AllowedItem {
+  id: string
+  name: string
+  unit: string
+  created_at: string
+}
+
 export interface Item {
   id: string
   name: string

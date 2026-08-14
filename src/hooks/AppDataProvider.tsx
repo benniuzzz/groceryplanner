@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import * as api from '../lib/api'
-import type { Allocation, Item, Meal, StockEntry } from '../lib/types'
+import type { AllowedItem, Allocation, Item, Meal, StockEntry } from '../lib/types'
 import { DataContext } from './DataContext'
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
+  const [allowedItems, setAllowedItems] = useState<AllowedItem[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [entries, setEntries] = useState<StockEntry[]>([])
   const [allEntries, setAllEntries] = useState<StockEntry[]>([])
@@ -14,13 +15,15 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const [itemsData, entriesData, mealsData, allocationsData] =
+      const [allowedData, itemsData, entriesData, mealsData, allocationsData] =
         await Promise.all([
+          api.fetchAllowedItems(),
           api.fetchItems(),
           api.fetchStockEntries(true),
           api.fetchMeals(),
           api.fetchAllocations(),
         ])
+      setAllowedItems(allowedData)
       setItems(itemsData)
       const active = entriesData.filter(
         (e) => e.deleted_at === null && e.consumed_at === null,
@@ -57,7 +60,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   return (
     <DataContext.Provider
-      value={{ items, entries, allEntries, meals, allocations, loading, error, refresh, run }}
+      value={{ allowedItems, items, entries, allEntries, meals, allocations, loading, error, refresh, run }}
     >
       {children}
     </DataContext.Provider>

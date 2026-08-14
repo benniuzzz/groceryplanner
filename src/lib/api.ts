@@ -1,5 +1,60 @@
 import { supabase } from './supabase'
-import type { Allocation, Item, Meal, MealSlot, StockEntry } from './types'
+import type {
+  AllowedItem,
+  Allocation,
+  Item,
+  Meal,
+  MealSlot,
+  StockEntry,
+} from './types'
+
+export async function fetchAllowedItems(): Promise<AllowedItem[]> {
+  const { data, error } = await supabase
+    .from('allowed_items')
+    .select('*')
+    .order('name')
+  if (error) throw error
+  return data as AllowedItem[]
+}
+
+export async function addAllowedItem(
+  name: string,
+  unit: string,
+): Promise<void> {
+  const { error } = await supabase.from('allowed_items').insert({ name, unit })
+  if (error) throw error
+}
+
+export async function updateAllowedItem(
+  id: string,
+  newName: string,
+  newUnit: string,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('allowed_items')
+    .select('name')
+    .eq('id', id)
+    .single()
+  if (error) throw error
+  const oldName = (data as { name: string }).name
+  const { error: updateError } = await supabase
+    .from('allowed_items')
+    .update({ name: newName, unit: newUnit })
+    .eq('id', id)
+  if (updateError) throw updateError
+  if (oldName !== newName) {
+    const { error: renameError } = await supabase
+      .from('items')
+      .update({ name: newName })
+      .ilike('name', oldName)
+    if (renameError) throw renameError
+  }
+}
+
+export async function removeAllowedItem(id: string): Promise<void> {
+  const { error } = await supabase.from('allowed_items').delete().eq('id', id)
+  if (error) throw error
+}
 
 export async function fetchItems(): Promise<Item[]> {
   const { data, error } = await supabase

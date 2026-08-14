@@ -1,7 +1,8 @@
 import { createContext } from 'react'
-import type { Allocation, Item, Meal, StockEntry } from '../lib/types'
+import type { AllowedItem, Allocation, Item, Meal, StockEntry } from '../lib/types'
 
 export interface AppData {
+  allowedItems: AllowedItem[]
   items: Item[]
   entries: StockEntry[]
   allEntries: StockEntry[]

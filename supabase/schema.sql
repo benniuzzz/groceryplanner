@@ -11,11 +11,24 @@ create table if not exists items (
 
 create unique index if not exists items_name_lower_uniq on items (lower(name));
 
+-- Curated list of item names the user allows in the Shopping page, each with
+-- its fixed unit. Deleting a row here never touches inventory/history; it only
+-- stops that item from being added to future shopping trips.
+create table if not exists allowed_items (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  unit text not null,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists allowed_items_name_lower_uniq on allowed_items (lower(name));
+
 -- Shared household dataset, no per-user auth: RLS off on all tables.
 alter table items disable row level security;
 alter table stock_entries disable row level security;
 alter table meals disable row level security;
 alter table allocations disable row level security;
+alter table allowed_items disable row level security;
 
 create table if not exists stock_entries (
   id uuid primary key default gen_random_uuid(),

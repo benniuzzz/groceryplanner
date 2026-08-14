@@ -2,38 +2,41 @@ import { useMemo, useState } from 'react'
 import * as api from '../lib/api'
 import { formatDateTime } from '../lib/dates'
 import { fmtCost, fmtQty } from '../lib/utils'
-import { UNITS, type StockEntry } from '../lib/types'
+import type { StockEntry } from '../lib/types'
 import { useAppData } from '../hooks/useAppData'
 import { ExpiryBadge } from './ExpiryBadge'
 import { btnPrimary, btnSecondary, inputCls } from './ui'
 
 interface DraftRow {
-  name: string
+  itemId: string
   quantity: string
-  unit: string
   expiry: string
   cost: string
 }
 
 const emptyRow = (): DraftRow => ({
-  name: '',
+  itemId: '',
   quantity: '',
-  unit: 'pcs',
   expiry: '',
   cost: '',
 })
 
-export function ShoppingView() {
-  const { allEntries, run } = useAppData()
+export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void }) {
+  const { allowedItems, allEntries, run } = useAppData()
   const [rows, setRows] = useState<DraftRow[]>([emptyRow()])
   const [message, setMessage] = useState<string | null>(null)
 
-  const suggestions = useMemo(() => {
-    const names = new Set(
-      allEntries.map((e) => e.items?.name).filter((n): n is string => Boolean(n)),
-    )
-    return [...names].sort((a, b) => a.localeCompare(b))
-  }, [allEntries])
+  const options = useMemo(
+    () =>
+      [...allowedItems].sort((a, b) => a.name.localeCompare(b.name)),
+    [allowedItems],
+  )
+
+  const itemById = useMemo(() => {
+    const map = new Map<string, (typeof allowedItems)[number]>()
+    for (const item of allowedItems) map.set(item.id, item)
+    return map
+  }, [allowedItems])
 
   const update = (index: number, patch: Partial<DraftRow>) => {
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)))
@@ -45,16 +48,19 @@ export function ShoppingView() {
 
   const submit = async () => {
     const valid = rows
-      .filter((r) => r.name.trim() !== '' && Number(r.quantity) > 0)
-      .map((r) => ({
-        name: r.name.trim(),
-        quantity: Number(r.quantity),
-        unit: r.unit,
-        expiry_date: r.expiry || null,
-        cost: r.cost.trim() === '' ? null : Number(r.cost),
-      }))
+      .filter((r) => r.itemId !== '' && Number(r.quantity) > 0)
+      .map((r) => {
+        const item = itemById.get(r.itemId)!
+        return {
+          name: item.name,
+          quantity: Number(r.quantity),
+          unit: item.unit,
+          expiry_date: r.expiry || null,
+          cost: r.cost.trim() === '' ? null : Number(r.cost),
+        }
+      })
     if (valid.length === 0) {
-      setMessage('Add at least one item with a name and a quantity above 0.')
+      setMessage('Choose an item and enter a quantity above 0.')
       return
     }
     const ok = await run(() => api.addGroceries(valid))
@@ -64,113 +70,122 @@ export function ShoppingView() {
     }
   }
 
+  const selectedUnit = (itemId: string) => itemById.get(itemId)?.unit ?? ''
+
   return (
     <div className="grid gap-8">
       <section>
         <h2 className="text-lg font-semibold text-slate-900">Shopping</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Log what you bought. Items with the same name are merged in your
-          inventory.
+          Log what you bought. Items can only be chosen from your configured
+          list; each one carries its own unit automatically.
         </p>
 
-        <datalist id="item-suggestions">
-          {suggestions.map((name) => (
-            <option key={name} value={name} />
-          ))}
-        </datalist>
-
-        <div className="mt-4 space-y-3">
-          {rows.map((row, i) => (
-            <div
-              key={i}
-              className="grid grid-cols-2 items-start gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-[1fr_90px_100px_150px_110px_auto]"
+        {options.length === 0 ? (
+          <div className="mt-4 rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-400">
+            No allowed items yet. Configure the list of items you want to buy
+            in{' '}
+            <button
+              onClick={onOpenSettings}
+              className="font-medium text-emerald-700 underline"
             >
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-slate-500">Item name</span>
-                <input
-                  className={inputCls}
-                  list="item-suggestions"
-                  placeholder="e.g. Eggs"
-                  value={row.name}
-                  onChange={(e) => update(i, { name: e.target.value })}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-slate-500">Quantity</span>
-                <input
-                  className={inputCls}
-                  type="number"
-                  min="0.01"
-                  step="any"
-                  placeholder="0"
-                  value={row.quantity}
-                  onChange={(e) => update(i, { quantity: e.target.value })}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-slate-500">Unit</span>
-                <select
-                  className={inputCls}
-                  value={row.unit}
-                  onChange={(e) => update(i, { unit: e.target.value })}
+              Settings
+            </button>
+            .
+          </div>
+        ) : (
+          <>
+            <div className="mt-4 space-y-3">
+              {rows.map((row, i) => (
+                <div
+                  key={i}
+                  className="grid grid-cols-2 items-start gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-[1fr_90px_70px_150px_110px_auto]"
                 >
-                  {UNITS.map((u) => (
-                    <option key={u} value={u}>
-                      {u}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-slate-500">
-                  Expiry date <span className="font-normal text-slate-400">(optional)</span>
-                </span>
-                <input
-                  className={`${inputCls} w-full`}
-                  type="date"
-                  value={row.expiry}
-                  onChange={(e) => update(i, { expiry: e.target.value })}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-slate-500">
-                  Cost <span className="font-normal text-slate-400">(optional)</span>
-                </span>
-                <input
-                  className={`${inputCls} w-full`}
-                  type="number"
-                  min="0"
-                  step="any"
-                  placeholder="0.00"
-                  value={row.cost}
-                  onChange={(e) => update(i, { cost: e.target.value })}
-                />
-              </label>
-              <button
-                type="button"
-                className="self-end rounded-lg px-2 py-2 text-sm text-slate-400 hover:bg-red-50 hover:text-red-600"
-                onClick={() => removeRow(i)}
-                disabled={rows.length === 1}
-                title="Remove row"
-              >
-                &#x2715;
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs font-medium text-slate-500">Item name</span>
+                    <select
+                      className={inputCls}
+                      value={row.itemId}
+                      onChange={(e) => update(i, { itemId: e.target.value })}
+                    >
+                      <option value="">Choose an item…</option>
+                      {options.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} — {item.unit}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs font-medium text-slate-500">Quantity</span>
+                    <input
+                      className={inputCls}
+                      type="number"
+                      min="0.01"
+                      step="any"
+                      placeholder="0"
+                      value={row.quantity}
+                      onChange={(e) => update(i, { quantity: e.target.value })}
+                    />
+                  </label>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-medium text-slate-500">Unit</span>
+                    <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                      {row.itemId ? selectedUnit(row.itemId) : '—'}
+                    </span>
+                  </div>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs font-medium text-slate-500">
+                      Expiry date <span className="font-normal text-slate-400">(optional)</span>
+                    </span>
+                    <input
+                      className={`${inputCls} w-full`}
+                      type="date"
+                      value={row.expiry}
+                      onChange={(e) => update(i, { expiry: e.target.value })}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs font-medium text-slate-500">
+                      Cost <span className="font-normal text-slate-400">(optional)</span>
+                    </span>
+                    <input
+                      className={`${inputCls} w-full`}
+                      type="number"
+                      min="0"
+                      step="any"
+                      placeholder="0.00"
+                      value={row.cost}
+                      onChange={(e) => update(i, { cost: e.target.value })}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="self-end rounded-lg px-2 py-2 text-sm text-slate-400 hover:bg-red-50 hover:text-red-600"
+                    onClick={() => removeRow(i)}
+                    disabled={rows.length === 1}
+                    title="Remove row"
+                  >
+                    &#x2715;
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex items-center gap-3">
+              <button className={btnSecondary} onClick={() => setRows((p) => [...p, emptyRow()])}>
+                + Add another item
+              </button>
+              <button className={btnPrimary} onClick={() => void submit()}>
+                Add to inventory
               </button>
             </div>
-          ))}
-        </div>
-
-        <div className="mt-4 flex items-center gap-3">
-          <button className={btnSecondary} onClick={() => setRows((p) => [...p, emptyRow()])}>
-            + Add another item
-          </button>
-          <button className={btnPrimary} onClick={() => void submit()}>
-            Add to inventory
-          </button>
-        </div>
-        {message && (
-          <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-            {message}
-          </p>
+            {message && (
+              <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                {message}
+              </p>
+            )}
+          </>
         )}
       </section>
 
