@@ -154,7 +154,7 @@ export function AllocationModal({
             {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
             {options.length === 0 && (
               <p className="mt-2 text-sm text-slate-400">
-                No leftovers available. Add groceries first.
+                No leftovers available. Add to Shopping first.
               </p>
             )}
           </div>

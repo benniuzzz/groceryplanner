@@ -4,6 +4,7 @@ import type { Allocation, Item, Meal, StockEntry } from '../lib/types'
 export interface AppData {
   items: Item[]
   entries: StockEntry[]
+  allEntries: StockEntry[]
   meals: Meal[]
   allocations: Allocation[]
   loading: boolean

@@ -10,7 +10,11 @@ export interface StockEntry {
   quantity: number
   unit: string
   expiry_date: string | null
+  cost: number | null
   added_at: string
+  consumed_at: string | null
+  deleted_at: string | null
+  deleted_why: string | null
   items?: { name: string }
 }
 

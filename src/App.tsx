@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { isSupabaseConfigured } from './lib/supabase'
 import { AppDataProvider } from './hooks/AppDataProvider'
 import { useAppData } from './hooks/useAppData'
-import { AddGroceriesView } from './components/AddGroceriesView'
+import { ShoppingView } from './components/ShoppingView'
 import { InventoryView } from './components/InventoryView'
 import { PlannerView } from './components/PlannerView'
 import { Sidebar } from './components/Sidebar'
@@ -87,7 +87,7 @@ function Shell() {
             <p className="text-sm text-slate-500">Loading…</p>
           ) : (
             <>
-              {tab === 'add' && <AddGroceriesView />}
+              {tab === 'add' && <ShoppingView />}
               {tab === 'inventory' && <InventoryView />}
               {tab === 'planner' && <PlannerView />}
             </>

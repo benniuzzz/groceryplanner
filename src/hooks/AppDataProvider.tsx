@@ -6,6 +6,7 @@ import { DataContext } from './DataContext'
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<Item[]>([])
   const [entries, setEntries] = useState<StockEntry[]>([])
+  const [allEntries, setAllEntries] = useState<StockEntry[]>([])
   const [meals, setMeals] = useState<Meal[]>([])
   const [allocations, setAllocations] = useState<Allocation[]>([])
   const [loading, setLoading] = useState(true)
@@ -16,12 +17,16 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       const [itemsData, entriesData, mealsData, allocationsData] =
         await Promise.all([
           api.fetchItems(),
-          api.fetchStockEntries(),
+          api.fetchStockEntries(true),
           api.fetchMeals(),
           api.fetchAllocations(),
         ])
       setItems(itemsData)
-      setEntries(entriesData)
+      const active = entriesData.filter(
+        (e) => e.deleted_at === null && e.consumed_at === null,
+      )
+      setEntries(active)
+      setAllEntries(entriesData)
       setMeals(mealsData)
       setAllocations(allocationsData)
       setError(null)
@@ -52,7 +57,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   return (
     <DataContext.Provider
-      value={{ items, entries, meals, allocations, loading, error, refresh, run }}
+      value={{ items, entries, allEntries, meals, allocations, loading, error, refresh, run }}
     >
       {children}
     </DataContext.Provider>

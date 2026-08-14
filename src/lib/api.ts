@@ -10,11 +10,19 @@ export async function fetchItems(): Promise<Item[]> {
   return data as Item[]
 }
 
-export async function fetchStockEntries(): Promise<StockEntry[]> {
-  const { data, error } = await supabase
+export async function fetchStockEntries(
+  includeInactive = false,
+): Promise<StockEntry[]> {
+  let query = supabase
     .from('stock_entries')
     .select('*, items(name)')
     .order('added_at', { ascending: false })
+  if (!includeInactive) {
+    query = query
+      .is('deleted_at', null)
+      .is('consumed_at', null)
+  }
+  const { data, error } = await query
   if (error) throw error
   return data as StockEntry[]
 }
@@ -42,6 +50,7 @@ export interface NewGrocery {
   quantity: number
   unit: string
   expiry_date: string | null
+  cost: number | null
 }
 
 export async function addGroceries(rows: NewGrocery[]): Promise<void> {
@@ -61,13 +70,22 @@ export async function addGroceries(rows: NewGrocery[]): Promise<void> {
     quantity: r.quantity,
     unit: r.unit,
     expiry_date: r.expiry_date,
+    cost: r.cost,
   }))
   const { error } = await supabase.from('stock_entries').insert(inserts)
   if (error) throw error
 }
 
 export async function deleteStockEntry(id: string): Promise<void> {
-  const { error } = await supabase.from('stock_entries').delete().eq('id', id)
+  const { error } = await supabase
+    .from('stock_entries')
+    .update({ deleted_at: new Date().toISOString(), deleted_why: 'removed' })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function clearPurchaseHistory(): Promise<void> {
+  const { error } = await supabase.rpc('clear_purchase_history')
   if (error) throw error
 }
 

@@ -23,10 +23,24 @@ create table if not exists stock_entries (
   quantity double precision not null check (quantity > 0),
   unit text not null,
   expiry_date date,
+  cost numeric(10, 2) check (cost >= 0),
   added_at timestamptz not null default now()
 );
 
 create index if not exists stock_entries_item_idx on stock_entries (item_id);
+
+alter table stock_entries add column if not exists cost numeric(10, 2);
+alter table stock_entries drop constraint if exists stock_entries_cost_check;
+alter table stock_entries add constraint stock_entries_cost_check check (cost >= 0);
+
+-- Soft-delete columns: cooking a meal or manually removing stock sets one of
+-- these instead of deleting the row, so purchase history is preserved.
+alter table stock_entries add column if not exists consumed_at timestamptz;
+alter table stock_entries add column if not exists deleted_at timestamptz;
+alter table stock_entries add column if not exists deleted_why text;
+
+create index if not exists stock_entries_active_idx on stock_entries (consumed_at)
+  where consumed_at is null and deleted_at is null;
 
 create table if not exists meals (
   id uuid primary key default gen_random_uuid(),
@@ -57,11 +71,14 @@ create table if not exists meal_consumption (
   unit text not null,
   quantity double precision not null check (quantity > 0),
   expiry_date date,
+  cost numeric(10, 2),
   added_at timestamptz not null default now(),
   consumed_at timestamptz not null default now()
 );
 
 create index if not exists meal_consumption_meal_idx on meal_consumption (meal_id);
+
+alter table meal_consumption add column if not exists cost numeric(10, 2);
 
 alter table meal_consumption disable row level security;
 
@@ -85,7 +102,8 @@ $$;
 
 -- Marks a meal as cooked and deducts its allocated amounts from stock,
 -- consuming entries that expire soonest first. Each deduction is logged to
--- meal_consumption so it can be exactly restored by uncook_meal.
+-- meal_consumption so it can be exactly restored by uncook_meal. Consumed
+-- stock entries are kept (soft-deleted via consumed_at) to preserve history.
 create or replace function cook_meal(p_meal_id uuid)
 returns void
 language plpgsql
@@ -107,20 +125,21 @@ begin
   loop
     remaining := a.quantity;
     for e in
-      select id, quantity, expiry_date, added_at
+      select id, quantity, expiry_date, added_at, cost
       from stock_entries
       where item_id = a.item_id and unit = a.unit
+        and consumed_at is null and deleted_at is null
       order by expiry_date asc nulls last, added_at asc
       for update
     loop
       exit when remaining <= 0;
       take := least(e.quantity, remaining);
       insert into meal_consumption
-        (meal_id, stock_entry_id, item_id, unit, quantity, expiry_date, added_at)
+        (meal_id, stock_entry_id, item_id, unit, quantity, expiry_date, cost, added_at)
       values
-        (p_meal_id, e.id, a.item_id, a.unit, take, e.expiry_date, e.added_at);
+        (p_meal_id, e.id, a.item_id, a.unit, take, e.expiry_date, e.cost, e.added_at);
       if take >= e.quantity then
-        delete from stock_entries where id = e.id;
+        update stock_entries set consumed_at = now() where id = e.id;
       else
         update stock_entries set quantity = quantity - take where id = e.id;
       end if;
@@ -131,7 +150,10 @@ end;
 $$;
 
 -- Marks a meal as uncooked and restores the exact stock entries that
--- cook_meal consumed (same item, unit, quantity, expiry and added_at).
+-- cook_meal consumed. Entries that still exist (possibly partially consumed)
+-- are revived by adding back the consumed quantity keyed on stock_entry_id;
+-- entries hard-deleted before soft-deletes existed are re-inserted from the
+-- snapshotted attributes in meal_consumption.
 create or replace function uncook_meal(p_meal_id uuid)
 returns void
 language plpgsql
@@ -142,12 +164,27 @@ declare
   c record;
 begin
   for c in
-    select item_id, unit, quantity, expiry_date, added_at
-    from meal_consumption
-    where meal_id = p_meal_id
+    select
+      m.stock_entry_id,
+      m.item_id,
+      m.unit,
+      m.expiry_date,
+      m.cost,
+      m.added_at,
+      sum(m.quantity) as quantity
+    from meal_consumption m
+    where m.meal_id = p_meal_id
+    group by m.stock_entry_id, m.item_id, m.unit, m.expiry_date, m.cost, m.added_at
   loop
-    insert into stock_entries (item_id, unit, quantity, expiry_date, added_at)
-    values (c.item_id, c.unit, c.quantity, c.expiry_date, c.added_at);
+    if c.stock_entry_id is null or not exists (select 1 from stock_entries where id = c.stock_entry_id) then
+      insert into stock_entries (item_id, unit, quantity, expiry_date, cost, added_at)
+      values (c.item_id, c.unit, c.quantity, c.expiry_date, c.cost, c.added_at);
+    else
+      update stock_entries
+      set quantity = quantity + c.quantity,
+          consumed_at = null
+      where id = c.stock_entry_id;
+    end if;
   end loop;
 
   delete from meal_consumption where meal_id = p_meal_id;
@@ -155,6 +192,19 @@ begin
 end;
 $$;
 
+-- Permanently deletes every stock entry, wiping both current inventory and
+-- purchase history. meal_consumption keeps its rows (stock_entry_id is set
+-- to null on delete) so cooked meals can still be uncooked.
+create or replace function clear_purchase_history()
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from stock_entries where id is not null;
+$$;
+
 grant execute on function get_or_create_item(text) to anon, authenticated;
 grant execute on function cook_meal(uuid) to anon, authenticated;
 grant execute on function uncook_meal(uuid) to anon, authenticated;
+grant execute on function clear_purchase_history() to anon, authenticated;
