@@ -7,6 +7,15 @@ export const btnPrimary =
 export const btnSecondary =
   'rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
 
+export const comboPanel =
+  'absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900'
+
+export const comboOption =
+  'w-full cursor-pointer px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800'
+
+export const comboOptionActive =
+  'w-full cursor-pointer px-3 py-2 text-left text-sm bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+
 export const btnDanger =
   'rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-900 dark:bg-slate-900 dark:text-red-400 dark:hover:bg-red-950'
 

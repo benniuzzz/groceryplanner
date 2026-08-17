@@ -5,6 +5,7 @@ import { fmtCost, fmtQty } from '../lib/utils'
 import type { StockEntry } from '../lib/types'
 import { useAppData } from '../hooks/useAppData'
 import { ExpiryBadge } from './ExpiryBadge'
+import { ItemCombobox } from './ItemCombobox'
 import { btnPrimary, btnSecondary, inputCls } from './ui'
 
 interface DraftRow {
@@ -103,18 +104,11 @@ export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void })
                 >
                   <label className="flex flex-col gap-1">
                     <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Item name</span>
-                    <select
-                      className={inputCls}
+                    <ItemCombobox
+                      options={options}
                       value={row.itemId}
-                      onChange={(e) => update(i, { itemId: e.target.value })}
-                    >
-                      <option value="">Choose an item…</option>
-                      {options.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name} — {item.unit}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(id) => update(i, { itemId: id })}
+                    />
                   </label>
                   <label className="flex flex-col gap-1">
                     <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Quantity</span>
