@@ -100,7 +100,7 @@ export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void })
               {rows.map((row, i) => (
                 <div
                   key={i}
-                  className="grid grid-cols-2 items-start gap-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-[1fr_90px_70px_150px_110px_auto]"
+                  className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start gap-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-[1fr_90px_70px_150px_110px_auto]"
                 >
                   <label className="flex flex-col gap-1">
                     <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Item name</span>
@@ -113,7 +113,7 @@ export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void })
                   <label className="flex flex-col gap-1">
                     <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Quantity</span>
                     <input
-                      className={inputCls}
+                      className={`${inputCls} w-full`}
                       type="number"
                       min="0.01"
                       step="any"

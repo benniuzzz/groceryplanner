@@ -87,7 +87,7 @@ export function ItemCombobox({ options, value, onChange, placeholder }: ItemComb
     <div ref={rootRef} className="relative">
       <input
         ref={inputRef}
-        className={inputCls}
+        className={`${inputCls} w-full`}
         role="combobox"
         aria-expanded={open}
         aria-controls={listboxId}
