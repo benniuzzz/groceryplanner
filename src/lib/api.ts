@@ -5,6 +5,7 @@ import type {
   Item,
   Meal,
   MealSlot,
+  MealWishlist,
   StockEntry,
 } from './types'
 
@@ -98,6 +99,14 @@ export async function fetchAllocations(): Promise<Allocation[]> {
     .select('*, items(id, name)')
   if (error) throw error
   return data as Allocation[]
+}
+
+export async function fetchMealWishlist(): Promise<MealWishlist[]> {
+  const { data, error } = await supabase
+    .from('meal_wishlist')
+    .select('*, allowed_items(id, name, unit)')
+  if (error) throw error
+  return data as MealWishlist[]
 }
 
 export interface NewGrocery {
@@ -195,5 +204,38 @@ export async function upsertAllocation(
 
 export async function deleteAllocation(id: string): Promise<void> {
   const { error } = await supabase.from('allocations').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function upsertWishlistAllocation(
+  mealId: string,
+  allowedItemId: string,
+  unit: string,
+  quantity: number,
+): Promise<void> {
+  const { error } = await supabase
+    .from('meal_wishlist')
+    .upsert(
+      { meal_id: mealId, allowed_item_id: allowedItemId, unit, quantity },
+      { onConflict: 'meal_id,allowed_item_id,unit' },
+    )
+  if (error) throw error
+}
+
+export async function deleteWishlistAllocation(id: string): Promise<void> {
+  const { error } = await supabase.from('meal_wishlist').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function purchaseWishlist(
+  ids: string[],
+  expiryDate: string | null,
+  cost: number | null,
+): Promise<void> {
+  const { error } = await supabase.rpc('purchase_wishlist', {
+    p_ids: ids,
+    p_expiry: expiryDate,
+    p_cost: cost,
+  })
   if (error) throw error
 }

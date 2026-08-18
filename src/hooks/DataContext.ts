@@ -1,5 +1,12 @@
 import { createContext } from 'react'
-import type { AllowedItem, Allocation, Item, Meal, StockEntry } from '../lib/types'
+import type {
+  AllowedItem,
+  Allocation,
+  Item,
+  Meal,
+  MealWishlist,
+  StockEntry,
+} from '../lib/types'
 
 export interface AppData {
   allowedItems: AllowedItem[]
@@ -8,6 +15,7 @@ export interface AppData {
   allEntries: StockEntry[]
   meals: Meal[]
   allocations: Allocation[]
+  wishlist: MealWishlist[]
   loading: boolean
   error: string | null
   refresh: () => Promise<void>

@@ -7,6 +7,7 @@ import {
   type Allocation,
   type Meal,
   type MealSlot,
+  type MealWishlist,
 } from '../lib/types'
 
 const SLOT_ACCENTS: Record<
@@ -37,9 +38,11 @@ const SLOT_ACCENTS: Record<
 export function TodayView({
   meals,
   allocations,
+  wishlist,
 }: {
   meals: Meal[]
   allocations: Allocation[]
+  wishlist: MealWishlist[]
 }) {
   const today = new Date()
   const dateLabel = formatDateTime(today.toISOString())
@@ -48,8 +51,8 @@ export function TodayView({
   const [copied, setCopied] = useState(false)
 
   const text = useMemo(
-    () => buildTodayText(meals, allocations, dateLabel),
-    [meals, allocations, dateLabel],
+    () => buildTodayText(meals, allocations, wishlist, dateLabel),
+    [meals, allocations, wishlist, dateLabel],
   )
 
   const copy = async () => {
@@ -160,16 +163,16 @@ export function TodayView({
                     )}
                   </div>
                   <ul className="mt-1 space-y-0.5">
-                    {mealAllocations(allocations, meal.id).map((a) => (
-                      <li key={a.id} className="text-slate-600 dark:text-slate-300">
-                        {a.items?.name ?? 'Unknown'}
+                    {mealIngredients(allocations, wishlist, meal.id).map((ig) => (
+                      <li key={ig.key} className="text-slate-600 dark:text-slate-300">
+                        {ig.name}
                         <span className="text-slate-400 dark:text-slate-500">
                           {' '}
-                          &middot; {fmtQty(a.quantity)} {a.unit}
+                          &middot; {fmtQty(ig.quantity)} {ig.unit}
                         </span>
                       </li>
                     ))}
-                    {mealAllocations(allocations, meal.id).length === 0 && (
+                    {mealIngredients(allocations, wishlist, meal.id).length === 0 && (
                       <li className="text-xs text-slate-400 dark:text-slate-500">
                         No ingredients allocated
                       </li>
@@ -189,9 +192,41 @@ function mealAllocations(allocations: Allocation[], mealId: string) {
   return allocations.filter((a) => a.meal_id === mealId)
 }
 
+interface IngredientLine {
+  key: string
+  name: string
+  quantity: number
+  unit: string
+}
+
+function mealIngredients(
+  allocations: Allocation[],
+  wishlist: MealWishlist[],
+  mealId: string,
+): IngredientLine[] {
+  const lines: IngredientLine[] = [
+    ...mealAllocations(allocations, mealId).map((a) => ({
+      key: a.id,
+      name: a.items?.name ?? 'Unknown',
+      quantity: a.quantity,
+      unit: a.unit,
+    })),
+    ...wishlist
+      .filter((w) => w.meal_id === mealId)
+      .map((w) => ({
+        key: w.id,
+        name: w.allowed_items?.name ?? 'Unknown',
+        quantity: w.quantity,
+        unit: w.unit,
+      })),
+  ]
+  return lines
+}
+
 function buildTodayText(
   meals: Meal[],
   allocations: Allocation[],
+  wishlist: MealWishlist[],
   dateLabel: string,
 ): string {
   const lines: string[] = []
@@ -206,12 +241,12 @@ function buildTodayText(
     }
     for (const meal of slotMeals) {
       lines.push(`  - ${meal.name}`)
-      const allocs = mealAllocations(allocations, meal.id)
-      if (allocs.length === 0) {
+      const ings = mealIngredients(allocations, wishlist, meal.id)
+      if (ings.length === 0) {
         lines.push('      No ingredients allocated')
       }
-      for (const a of allocs) {
-        lines.push(`      - ${a.items?.name ?? 'Unknown'}: ${fmtQty(a.quantity)} ${a.unit}`)
+      for (const ig of ings) {
+        lines.push(`      - ${ig.name}: ${fmtQty(ig.quantity)} ${ig.unit}`)
       }
     }
   }

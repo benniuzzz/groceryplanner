@@ -36,6 +36,16 @@ export interface Meal {
   created_at: string
 }
 
+export interface MealWishlist {
+  id: string
+  meal_id: string
+  allowed_item_id: string
+  unit: string
+  quantity: number
+  created_at: string
+  allowed_items?: { id: string; name: string; unit: string }
+}
+
 export interface Allocation {
   id: string
   meal_id: string

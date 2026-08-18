@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import * as api from '../lib/api'
 import { formatDateTime } from '../lib/dates'
 import { fmtCost, fmtQty } from '../lib/utils'
-import type { StockEntry } from '../lib/types'
+import type { AllowedItem, StockEntry } from '../lib/types'
 import { useAppData } from '../hooks/useAppData'
 import { ExpiryBadge } from './ExpiryBadge'
 import { ItemCombobox } from './ItemCombobox'
@@ -23,9 +23,12 @@ const emptyRow = (): DraftRow => ({
 })
 
 export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void }) {
-  const { allowedItems, allEntries, run } = useAppData()
+  const { allowedItems, allEntries, wishlist, meals, run } = useAppData()
   const [rows, setRows] = useState<DraftRow[]>([emptyRow()])
   const [message, setMessage] = useState<string | null>(null)
+  const [purchaseFields, setPurchaseFields] = useState<
+    Record<string, { expiry: string; cost: string }>
+  >({})
 
   const options = useMemo(
     () =>
@@ -38,6 +41,60 @@ export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void })
     for (const item of allowedItems) map.set(item.id, item)
     return map
   }, [allowedItems])
+
+  const mealById = useMemo(
+    () => new Map(meals.map((m) => [m.id, m.name])),
+    [meals],
+  )
+
+  const wishlistGroups = useMemo(() => {
+    const groups = new Map<
+      string,
+      { item: AllowedItem; total: number; mealIds: Set<string>; rowIds: string[] }
+    >()
+    for (const w of wishlist) {
+      const item = itemById.get(w.allowed_item_id)
+      if (!item) continue
+      let group = groups.get(item.id)
+      if (!group) {
+        group = { item, total: 0, mealIds: new Set(), rowIds: [] }
+        groups.set(item.id, group)
+      }
+      group.total += w.quantity
+      group.mealIds.add(w.meal_id)
+      group.rowIds.push(w.id)
+    }
+    return [...groups.values()].sort((a, b) =>
+      a.item.name.localeCompare(b.item.name),
+    )
+  }, [wishlist, itemById])
+
+  const fieldsFor = (itemId: string) => purchaseFields[itemId] ?? { expiry: '', cost: '' }
+
+  const setField = (itemId: string, key: 'expiry' | 'cost', value: string) => {
+    setPurchaseFields((prev) => ({
+      ...prev,
+      [itemId]: { ...fieldsFor(itemId), [key]: value },
+    }))
+  }
+
+  const buyWishlist = async (
+    itemId: string,
+    rowIds: string[],
+  ) => {
+    const fields = fieldsFor(itemId)
+    const expiry = fields.expiry || null
+    const cost = fields.cost.trim() === '' ? null : Number(fields.cost)
+    const ok = await run(() => api.purchaseWishlist(rowIds, expiry, cost))
+    if (ok) {
+      setPurchaseFields((prev) => {
+        const next = { ...prev }
+        delete next[itemId]
+        return next
+      })
+      setMessage('Bought from your meal wishlist — added to inventory.')
+    }
+  }
 
   const update = (index: number, patch: Partial<DraftRow>) => {
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)))
@@ -183,8 +240,112 @@ export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void })
         )}
       </section>
 
+      <WishlistSection
+        groups={wishlistGroups}
+        mealById={mealById}
+        fieldsFor={fieldsFor}
+        setField={setField}
+        onBuy={buyWishlist}
+      />
+
       <AdditionHistory entries={allEntries} run={run} />
     </div>
+  )
+}
+
+function WishlistSection({
+  groups,
+  mealById,
+  fieldsFor,
+  setField,
+  onBuy,
+}: {
+  groups: {
+    item: AllowedItem
+    total: number
+    mealIds: Set<string>
+    rowIds: string[]
+  }[]
+  mealById: Map<string, string>
+  fieldsFor: (itemId: string) => { expiry: string; cost: string }
+  setField: (itemId: string, key: 'expiry' | 'cost', value: string) => void
+  onBuy: (itemId: string, rowIds: string[]) => void
+}) {
+  return (
+    <section>
+      <div>
+        <h3 className="text-md font-semibold text-slate-900 dark:text-slate-100">
+          Meal Wishlist
+        </h3>
+        <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+          Groceries meals still need. Once bought, each is added to your
+          inventory and allocated to its meal, so it can be cooked.
+        </p>
+      </div>
+
+      {groups.length === 0 ? (
+        <p className="mt-3 rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
+          No items on any meal&apos;s wishlist yet. Add them from a meal in the{' '}
+          <em>Meal Planner</em>.
+        </p>
+      ) : (
+        <div className="mt-3 space-y-2">
+          {groups.map((group) => (
+            <div
+              key={group.item.id}
+              className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/40 p-3 dark:border-amber-900 dark:bg-amber-950/30 lg:flex-row lg:items-end"
+            >
+              <div className="flex-1">
+                <span className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                  {group.item.name}
+                </span>
+                <div className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                  {fmtQty(group.total)} {group.item.unit} &middot; for{' '}
+                  {[...group.mealIds]
+                    .map((id) => mealById.get(id) ?? 'Unknown')
+                    .join(', ')}
+                </div>
+              </div>
+              <label className="flex flex-col gap-1 lg:w-40">
+                <span className="text-xs font-medium text-slate-500">
+                  Expiry <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+                </span>
+                <input
+                  className={`${inputCls} w-full`}
+                  type="date"
+                  value={fieldsFor(group.item.id).expiry}
+                  onChange={(e) =>
+                    setField(group.item.id, 'expiry', e.target.value)
+                  }
+                />
+              </label>
+              <label className="flex flex-col gap-1 lg:w-28">
+                <span className="text-xs font-medium text-slate-500">
+                  Cost <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+                </span>
+                <input
+                  className={`${inputCls} w-full`}
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="0.00"
+                  value={fieldsFor(group.item.id).cost}
+                  onChange={(e) =>
+                    setField(group.item.id, 'cost', e.target.value)
+                  }
+                />
+              </label>
+              <button
+                className={btnPrimary}
+                onClick={() => void onBuy(group.item.id, group.rowIds)}
+              >
+                I bought this
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   )
 }
 

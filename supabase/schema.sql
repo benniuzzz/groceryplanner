@@ -89,6 +89,24 @@ create table if not exists meal_consumption (
   consumed_at timestamptz not null default now()
 );
 
+-- Groceries a meal needs but that aren't in the inventory yet. Items here are
+-- chosen from allowed_items; a meal is cookable only when it has no rows here.
+-- Buying them via purchase_wishlist converts each row into a stock entry plus
+-- a regular inventory allocation, then deletes the row.
+create table if not exists meal_wishlist (
+  id uuid primary key default gen_random_uuid(),
+  meal_id uuid not null references meals(id) on delete cascade,
+  allowed_item_id uuid not null references allowed_items(id) on delete cascade,
+  unit text not null,
+  quantity double precision not null check (quantity > 0),
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists meal_wishlist_meal_item_uniq
+  on meal_wishlist (meal_id, allowed_item_id, unit);
+
+alter table meal_wishlist disable row level security;
+
 create index if not exists meal_consumption_meal_idx on meal_consumption (meal_id);
 
 alter table meal_consumption add column if not exists cost numeric(10, 2);
@@ -129,6 +147,12 @@ declare
   remaining double precision;
   take double precision;
 begin
+  if exists (
+    select 1 from meal_wishlist where meal_id = p_meal_id
+  ) then
+    raise exception 'Meal still has wishlist ingredients that have not been bought.';
+  end if;
+
   update meals set cooked = true where id = p_meal_id and cooked = false;
 
   for a in
@@ -217,7 +241,74 @@ as $$
   delete from stock_entries where id is not null;
 $$;
 
+-- Converts wishlist rows (one or more meals' portions of the same allowed
+-- item) into stock entries plus regular inventory allocations for each meal,
+-- then removes the wishlist rows. The supplied cost is treated as the TOTAL
+-- for all the purchased rows and is split proportionally by quantity; the last
+-- row absorbs rounding so the shares always sum exactly to the total.
+create or replace function purchase_wishlist(p_ids uuid[], p_expiry date, p_cost numeric)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  w record;
+  v_item_id uuid;
+  v_total_qty double precision := 0;
+  v_rows bigint := 0;
+  v_i bigint := 0;
+  v_spent numeric := 0;
+  v_share numeric;
+begin
+  select coalesce(sum(quantity), 0) into v_total_qty
+    from meal_wishlist
+    where id = any (p_ids);
+
+  select count(*) into v_rows
+    from meal_wishlist
+    where id = any (p_ids);
+
+  for w in
+    select mw.id, mw.meal_id, mw.unit, mw.quantity, ai.name
+    from meal_wishlist mw
+    join allowed_items ai on ai.id = mw.allowed_item_id
+    where mw.id = any(p_ids)
+    order by mw.id
+    for update
+  loop
+    v_i := v_i + 1;
+
+    select id into v_item_id from items where lower(name) = lower(trim(w.name));
+    if v_item_id is null then
+      insert into items (name) values (trim(w.name)) returning id into v_item_id;
+    end if;
+
+    if p_cost is null then
+      v_share := null;
+    else
+      v_share := round((p_cost * w.quantity / nullif(v_total_qty, 0))::numeric, 2);
+      if v_i = v_rows then
+        v_share := p_cost - v_spent;
+      end if;
+      v_spent := v_spent + coalesce(v_share, 0);
+    end if;
+
+    insert into stock_entries (item_id, unit, quantity, expiry_date, cost)
+    values (v_item_id, w.unit, w.quantity, p_expiry, v_share);
+
+    insert into allocations (meal_id, item_id, unit, quantity)
+    values (w.meal_id, v_item_id, w.unit, w.quantity)
+    on conflict (meal_id, item_id, unit) do update
+      set quantity = allocations.quantity + excluded.quantity;
+
+    delete from meal_wishlist where id = w.id;
+  end loop;
+end;
+$$;
+
 grant execute on function get_or_create_item(text) to anon, authenticated;
 grant execute on function cook_meal(uuid) to anon, authenticated;
 grant execute on function uncook_meal(uuid) to anon, authenticated;
 grant execute on function clear_purchase_history() to anon, authenticated;
+grant execute on function purchase_wishlist(uuid[], date, numeric) to anon, authenticated;

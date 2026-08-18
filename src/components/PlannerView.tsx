@@ -17,7 +17,7 @@ import { TodayView } from './TodayView'
 import { inputCls } from './ui'
 
 export function PlannerView() {
-  const { meals, allocations, entries, run } = useAppData()
+  const { meals, allocations, entries, wishlist, run } = useAppData()
   const [selectedMealId, setSelectedMealId] = useState<string | null>(null)
   const [addingCell, setAddingCell] = useState<{
     day: number
@@ -41,6 +41,11 @@ export function PlannerView() {
 
   const allocationCount = (mealId: string) =>
     allocations.filter((a) => a.meal_id === mealId).length
+
+  const wishlistCount = (mealId: string) =>
+    wishlist.filter((w) => w.meal_id === mealId).length
+
+  const canCook = (mealId: string) => wishlistCount(mealId) === 0
 
   const todayMeals = meals.filter((m) => m.day === today)
 
@@ -77,7 +82,7 @@ export function PlannerView() {
           </p>
         </div>
 
-        <TodayView meals={todayMeals} allocations={allocations} />
+        <TodayView meals={todayMeals} allocations={allocations} wishlist={wishlist} />
 
         <div className="mt-4">
           <div className="mb-2 flex items-center justify-end gap-2">
@@ -181,6 +186,8 @@ export function PlannerView() {
                           key={meal.id}
                           meal={meal}
                           allocationCount={allocationCount(meal.id)}
+                          wishlistCount={wishlistCount(meal.id)}
+                          canCook={canCook(meal.id)}
                           selected={meal.id === selectedMealId}
                           onSelect={() => setSelectedMealId(meal.id)}
                           onToggleCook={() =>

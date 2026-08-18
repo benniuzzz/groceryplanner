@@ -3,6 +3,8 @@ import type { Meal } from '../lib/types'
 export function MealCard({
   meal,
   allocationCount,
+  wishlistCount,
+  canCook,
   selected,
   onSelect,
   onToggleCook,
@@ -10,6 +12,8 @@ export function MealCard({
 }: {
   meal: Meal
   allocationCount: number
+  wishlistCount: number
+  canCook: boolean
   selected: boolean
   onSelect: () => void
   onToggleCook: () => void
@@ -31,6 +35,11 @@ export function MealCard({
       </div>
       <div className="mt-1 flex items-center justify-between gap-1">
         <span className="flex items-center gap-1.5">
+          {wishlistCount > 0 && (
+            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+              {wishlistCount} to buy
+            </span>
+          )}
           {allocationCount > 0 && (
             <span className="text-xs text-slate-400 dark:text-slate-500">
               {allocationCount} item{allocationCount === 1 ? '' : 's'}
@@ -42,13 +51,23 @@ export function MealCard({
             className={
               meal.cooked
                 ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-slate-300 hover:text-emerald-600 dark:text-slate-600 dark:hover:text-emerald-400'
+                : canCook
+                  ? 'text-slate-300 hover:text-emerald-600 dark:text-slate-600 dark:hover:text-emerald-400'
+                  : 'text-slate-200 dark:text-slate-700'
             }
             onClick={(e) => {
               e.stopPropagation()
+              if (!meal.cooked && !canCook) return
               onToggleCook()
             }}
-            title={meal.cooked ? 'Uncook and restore stock' : 'Mark cooked'}
+            disabled={!canCook && !meal.cooked}
+            title={
+              meal.cooked
+                ? 'Uncook and restore stock'
+                : canCook
+                  ? 'Mark cooked'
+                  : 'Buy all wishlist items first'
+            }
           >
             <svg
               viewBox="0 0 24 24"

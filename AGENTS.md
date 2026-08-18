@@ -19,8 +19,9 @@ React 19 + Vite + TypeScript app (a household grocery planner) backed by Supabas
 ## Supabase
 
 - No auth and no RLS — one shared household dataset, all tables have RLS disabled. Do not add auth.
-- Schema lives in `supabase/schema.sql` and is applied manually via the Supabase SQL Editor. When changing tables/functions, update the file and re-run it in the dashboard. The app calls three Postgres functions via RPC: `get_or_create_item(text)`, `cook_meal(uuid)`, and `uncook_meal(uuid)` (`src/lib/api.ts`).
+- Schema lives in `supabase/schema.sql` and is applied manually via the Supabase SQL Editor. When changing tables/functions, update the file and re-run it in the dashboard. The app calls four Postgres functions via RPC: `get_or_create_item(text)`, `cook_meal(uuid)`, `uncook_meal(uuid)`, and `purchase_wishlist(uuid[], date, numeric)` (`src/lib/api.ts`).
 - Stock deduction happens in the DB, not the client: `cook_meal` marks a meal cooked and consumes its allocations FEFO. Client-side inventory math (`src/lib/inventory.ts:computeInventory`) only excludes allocations belonging to cooked meals for display.
+- Meal wishlist: `meal_wishlist` rows (unbought groceries chosen from `allowed_items` per meal) gate cooking — `cook_meal` raises if a meal has any. Buying an item in the Shopping tab's Meal Wishlist section via `purchase_wishlist` turns its rows into stock entries + inventory allocations and deletes them.
 - Env vars: `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` (legacy fallback `VITE_SUPABASE_ANON_KEY`). `.env.production` is committed intentionally with real publishable credentials; `.env.local` (gitignored) is for local dev. Without env vars the app shows a setup screen (`App.tsx:SetupScreen`) instead of crashing.
 
 ## Frontend
