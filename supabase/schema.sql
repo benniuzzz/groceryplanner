@@ -241,12 +241,23 @@ as $$
   delete from stock_entries where id is not null;
 $$;
 
--- Converts wishlist rows (one or more meals' portions of the same allowed
--- item) into stock entries plus regular inventory allocations for each meal,
--- then removes the wishlist rows. The supplied cost is treated as the TOTAL
--- for all the purchased rows and is split proportionally by quantity; the last
--- row absorbs rounding so the shares always sum exactly to the total.
-create or replace function purchase_wishlist(p_ids uuid[], p_expiry date, p_cost numeric)
+-- Converts wishlist rows into stock entries plus regular inventory
+-- allocations for each meal. p_ids and p_qtys are parallel arrays: p_qtys[i]
+-- is the quantity actually purchased for the wishlist row p_ids[i], so a row
+-- can be partially bought (its remaining quantity stays on the wishlist) or
+-- over-bought (the surplus lands as free, unallocated stock).
+--
+-- Per row, with v_bought = p_qtys[i] and v_wish = the row's quantity:
+--   stock entry qty = v_bought (the full purchased amount)
+--   allocation qty = least(v_bought, v_wish) (the meal only needs v_wish)
+--   if v_bought < v_wish the wishlist row is reduced to v_wish - v_bought,
+--   otherwise it is deleted. Cooking later deducts only the allocation, so any
+--   over-purchased excess stays in household inventory.
+--
+-- The supplied cost is treated as the TOTAL for all purchased rows and is split
+-- proportionally by the purchased (not wishlist) quantity; the last row absorbs
+-- rounding so the shares always sum exactly to the total.
+create or replace function purchase_wishlist(p_ids uuid[], p_qtys double precision[], p_expiry date, p_cost numeric)
 returns void
 language plpgsql
 security definer
@@ -255,29 +266,60 @@ as $$
 declare
   w record;
   v_item_id uuid;
+  v_bought double precision;
+  v_alloc double precision;
   v_total_qty double precision := 0;
   v_rows bigint := 0;
   v_i bigint := 0;
   v_spent numeric := 0;
   v_share numeric;
 begin
-  select coalesce(sum(quantity), 0) into v_total_qty
-    from meal_wishlist
-    where id = any (p_ids);
+  if array_length(p_qtys, 1) is null or array_length(p_ids, 1) is null then
+    return;
+  end if;
+  if array_length(p_qtys, 1) <> array_length(p_ids, 1) then
+    raise exception 'purchase_wishlist: p_ids and p_qtys must have the same length.';
+  end if;
 
-  select count(*) into v_rows
-    from meal_wishlist
-    where id = any (p_ids);
+  -- Total purchased quantity and number of processable rows (bought > 0),
+  -- used to split p_cost proportionally by purchased quantity. Computed once
+  -- so the per-row denominator is stable; the last processable row absorbs
+  -- rounding so the shares sum exactly to p_cost.
+  with indexed as (
+    select mw.id, p_qtys[i] as bought
+    from meal_wishlist mw
+    cross join unnest(p_ids) with ordinality as u(id, i)
+    where mw.id = u.id
+  )
+  select coalesce(sum(bought), 0), count(*)
+  into v_total_qty, v_rows
+  from indexed
+  where bought is not null and bought > 0;
 
   for w in
-    select mw.id, mw.meal_id, mw.unit, mw.quantity, ai.name
-    from meal_wishlist mw
-    join allowed_items ai on ai.id = mw.allowed_item_id
-    where mw.id = any(p_ids)
-    order by mw.id
+    with indexed as (
+      select mw.id, mw.meal_id, mw.unit, mw.quantity, ai.name,
+             p_qtys[i] as bought
+      from meal_wishlist mw
+      join allowed_items ai on ai.id = mw.allowed_item_id
+      cross join unnest(p_ids) with ordinality as u(id, i)
+      where mw.id = u.id
+    )
+    select id, meal_id, unit, quantity, name, bought
+    from indexed
+    order by id
     for update
   loop
+    v_bought := w.bought;
+
+    if v_bought is null or v_bought <= 0 then
+      -- Skip rows the caller passed with no purchase share; the wishlist row
+      -- is left untouched.
+      continue;
+    end if;
+
     v_i := v_i + 1;
+    v_alloc := least(v_bought, w.quantity);
 
     select id into v_item_id from items where lower(name) = lower(trim(w.name));
     if v_item_id is null then
@@ -287,7 +329,7 @@ begin
     if p_cost is null then
       v_share := null;
     else
-      v_share := round((p_cost * w.quantity / nullif(v_total_qty, 0))::numeric, 2);
+      v_share := round((p_cost * v_bought / nullif(v_total_qty, 0))::numeric, 2);
       if v_i = v_rows then
         v_share := p_cost - v_spent;
       end if;
@@ -295,14 +337,18 @@ begin
     end if;
 
     insert into stock_entries (item_id, unit, quantity, expiry_date, cost)
-    values (v_item_id, w.unit, w.quantity, p_expiry, v_share);
+    values (v_item_id, w.unit, v_bought, p_expiry, v_share);
 
     insert into allocations (meal_id, item_id, unit, quantity)
-    values (w.meal_id, v_item_id, w.unit, w.quantity)
+    values (w.meal_id, v_item_id, w.unit, v_alloc)
     on conflict (meal_id, item_id, unit) do update
       set quantity = allocations.quantity + excluded.quantity;
 
-    delete from meal_wishlist where id = w.id;
+    if v_bought < w.quantity then
+      update meal_wishlist set quantity = quantity - v_bought where id = w.id;
+    else
+      delete from meal_wishlist where id = w.id;
+    end if;
   end loop;
 end;
 $$;
@@ -311,4 +357,4 @@ grant execute on function get_or_create_item(text) to anon, authenticated;
 grant execute on function cook_meal(uuid) to anon, authenticated;
 grant execute on function uncook_meal(uuid) to anon, authenticated;
 grant execute on function clear_purchase_history() to anon, authenticated;
-grant execute on function purchase_wishlist(uuid[], date, numeric) to anon, authenticated;
+grant execute on function purchase_wishlist(uuid[], double precision[], date, numeric) to anon, authenticated;

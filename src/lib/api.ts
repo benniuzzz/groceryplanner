@@ -229,11 +229,13 @@ export async function deleteWishlistAllocation(id: string): Promise<void> {
 
 export async function purchaseWishlist(
   ids: string[],
+  qtys: number[],
   expiryDate: string | null,
   cost: number | null,
 ): Promise<void> {
   const { error } = await supabase.rpc('purchase_wishlist', {
     p_ids: ids,
+    p_qtys: qtys,
     p_expiry: expiryDate,
     p_cost: cost,
   })

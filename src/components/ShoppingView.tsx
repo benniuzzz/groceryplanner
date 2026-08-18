@@ -27,7 +27,7 @@ export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void })
   const [rows, setRows] = useState<DraftRow[]>([emptyRow()])
   const [message, setMessage] = useState<string | null>(null)
   const [purchaseFields, setPurchaseFields] = useState<
-    Record<string, { expiry: string; cost: string }>
+    Record<string, { expiry: string; cost: string; bought: string }>
   >({})
 
   const options = useMemo(
@@ -50,28 +50,38 @@ export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void })
   const wishlistGroups = useMemo(() => {
     const groups = new Map<
       string,
-      { item: AllowedItem; total: number; mealIds: Set<string>; rowIds: string[] }
+      {
+        item: AllowedItem
+        total: number
+        mealIds: Set<string>
+        rows: { id: string; quantity: number }[]
+      }
     >()
     for (const w of wishlist) {
       const item = itemById.get(w.allowed_item_id)
       if (!item) continue
       let group = groups.get(item.id)
       if (!group) {
-        group = { item, total: 0, mealIds: new Set(), rowIds: [] }
+        group = { item, total: 0, mealIds: new Set(), rows: [] }
         groups.set(item.id, group)
       }
       group.total += w.quantity
       group.mealIds.add(w.meal_id)
-      group.rowIds.push(w.id)
+      group.rows.push({ id: w.id, quantity: w.quantity })
     }
     return [...groups.values()].sort((a, b) =>
       a.item.name.localeCompare(b.item.name),
     )
   }, [wishlist, itemById])
 
-  const fieldsFor = (itemId: string) => purchaseFields[itemId] ?? { expiry: '', cost: '' }
+  const fieldsFor = (itemId: string) =>
+    purchaseFields[itemId] ?? { expiry: '', cost: '', bought: '' }
 
-  const setField = (itemId: string, key: 'expiry' | 'cost', value: string) => {
+  const setField = (
+    itemId: string,
+    key: 'expiry' | 'cost' | 'bought',
+    value: string,
+  ) => {
     setPurchaseFields((prev) => ({
       ...prev,
       [itemId]: { ...fieldsFor(itemId), [key]: value },
@@ -80,12 +90,42 @@ export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void })
 
   const buyWishlist = async (
     itemId: string,
-    rowIds: string[],
+    rows: { id: string; quantity: number }[],
   ) => {
     const fields = fieldsFor(itemId)
     const expiry = fields.expiry || null
     const cost = fields.cost.trim() === '' ? null : Number(fields.cost)
-    const ok = await run(() => api.purchaseWishlist(rowIds, expiry, cost))
+    const total = rows.reduce((sum, r) => sum + r.quantity, 0)
+    const boughtTotal =
+      fields.bought.trim() === '' ? total : Number(fields.bought)
+    if (!Number.isFinite(boughtTotal) || boughtTotal <= 0) {
+      setMessage('Enter how many you bought (greater than 0).')
+      return
+    }
+    // Distribute the purchased quantity across meals in a stable order,
+    // filling each meal's wishlist fully before moving on. Any leftover after
+    // the last meal (over-purchase) is attached to the last purchased row so
+    // it lands as free, unallocated stock.
+    const ordered = [...rows].sort((a, b) => a.id.localeCompare(b.id))
+    let remaining = boughtTotal
+    const ids: string[] = []
+    const qtys: number[] = []
+    for (const r of ordered) {
+      const share = Math.min(remaining, r.quantity)
+      if (share > 0) {
+        ids.push(r.id)
+        qtys.push(share)
+        remaining -= share
+      }
+    }
+    if (remaining > 0 && ids.length > 0) {
+      qtys[qtys.length - 1] += remaining
+    }
+    if (ids.length === 0) {
+      setMessage('This item has no wishlist quantity to buy.')
+      return
+    }
+    const ok = await run(() => api.purchaseWishlist(ids, qtys, expiry, cost))
     if (ok) {
       setPurchaseFields((prev) => {
         const next = { ...prev }
@@ -264,12 +304,16 @@ function WishlistSection({
     item: AllowedItem
     total: number
     mealIds: Set<string>
-    rowIds: string[]
+    rows: { id: string; quantity: number }[]
   }[]
   mealById: Map<string, string>
-  fieldsFor: (itemId: string) => { expiry: string; cost: string }
-  setField: (itemId: string, key: 'expiry' | 'cost', value: string) => void
-  onBuy: (itemId: string, rowIds: string[]) => void
+  fieldsFor: (itemId: string) => { expiry: string; cost: string; bought: string }
+  setField: (
+    itemId: string,
+    key: 'expiry' | 'cost' | 'bought',
+    value: string,
+  ) => void
+  onBuy: (itemId: string, rows: { id: string; quantity: number }[]) => void
 }) {
   return (
     <section>
@@ -306,6 +350,22 @@ function WishlistSection({
                     .join(', ')}
                 </div>
               </div>
+              <label className="flex flex-col gap-1 lg:w-28">
+                <span className="text-xs font-medium text-slate-500">
+                  Bought <span className="font-normal text-slate-400 dark:text-slate-500">(of {fmtQty(group.total)})</span>
+                </span>
+                <input
+                  className={`${inputCls} w-full`}
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder={String(group.total)}
+                  value={fieldsFor(group.item.id).bought}
+                  onChange={(e) =>
+                    setField(group.item.id, 'bought', e.target.value)
+                  }
+                />
+              </label>
               <label className="flex flex-col gap-1 lg:w-40">
                 <span className="text-xs font-medium text-slate-500">
                   Expiry <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
@@ -337,7 +397,7 @@ function WishlistSection({
               </label>
               <button
                 className={btnPrimary}
-                onClick={() => void onBuy(group.item.id, group.rowIds)}
+                onClick={() => void onBuy(group.item.id, group.rows)}
               >
                 I bought this
               </button>
