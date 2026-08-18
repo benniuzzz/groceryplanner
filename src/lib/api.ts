@@ -140,11 +140,11 @@ export async function addGroceries(rows: NewGrocery[]): Promise<void> {
   if (error) throw error
 }
 
-export async function deleteStockEntry(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('stock_entries')
-    .update({ deleted_at: new Date().toISOString(), deleted_why: 'removed' })
-    .eq('id', id)
+export async function removeStock(id: string, qty: number): Promise<void> {
+  const { error } = await supabase.rpc('remove_stock', {
+    p_stock_entry_id: id,
+    p_qty: qty,
+  })
   if (error) throw error
 }
 

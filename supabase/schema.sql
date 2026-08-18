@@ -241,6 +241,45 @@ as $$
   delete from stock_entries where id is not null;
 $$;
 
+-- Removes p_qty from a single stock batch. If p_qty covers the batch's entire
+-- remaining quantity the batch is soft-deleted (deleted_at + deleted_why) so
+-- purchase history is preserved; otherwise the batch's quantity is reduced.
+-- Raises if p_qty is invalid or exceeds what's left in the batch.
+create or replace function remove_stock(p_stock_entry_id uuid, p_qty double precision)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_quantity double precision;
+begin
+  if p_qty is null or p_qty <= 0 then
+    raise exception 'Quantity to remove must be greater than 0.';
+  end if;
+
+  select quantity
+  into v_quantity
+  from stock_entries
+  where id = p_stock_entry_id
+    and consumed_at is null
+    and deleted_at is null
+  for update;
+
+  if not found then
+    raise exception 'That batch is no longer active.';
+  end if;
+
+  if p_qty >= v_quantity then
+    update stock_entries
+    set deleted_at = now(), deleted_why = 'removed'
+    where id = p_stock_entry_id;
+  else
+    update stock_entries set quantity = quantity - p_qty where id = p_stock_entry_id;
+  end if;
+end;
+$$;
+
 -- Converts wishlist rows into stock entries plus regular inventory
 -- allocations for each meal. p_ids and p_qtys are parallel arrays: p_qtys[i]
 -- is the quantity actually purchased for the wishlist row p_ids[i], so a row
@@ -357,4 +396,5 @@ grant execute on function get_or_create_item(text) to anon, authenticated;
 grant execute on function cook_meal(uuid) to anon, authenticated;
 grant execute on function uncook_meal(uuid) to anon, authenticated;
 grant execute on function clear_purchase_history() to anon, authenticated;
+grant execute on function remove_stock(uuid, double precision) to anon, authenticated;
 grant execute on function purchase_wishlist(uuid[], double precision[], date, numeric) to anon, authenticated;

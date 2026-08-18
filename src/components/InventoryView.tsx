@@ -5,7 +5,7 @@ import { formatDate } from '../lib/dates'
 import { fmtQty } from '../lib/utils'
 import { useAppData } from '../hooks/useAppData'
 import { ExpiryBadge } from './ExpiryBadge'
-import { btnDanger } from './ui'
+import { btnDanger, inputCls } from './ui'
 
 type SortKey = 'name' | 'leftover' | 'expiry'
 
@@ -14,6 +14,8 @@ export function InventoryView() {
   const [sortKey, setSortKey] = useState<SortKey>('name')
   const [hideZero, setHideZero] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [removeQty, setRemoveQty] = useState<Record<string, string>>({})
+  const [removeErr, setRemoveErr] = useState<Record<string, string>>({})
 
   const rows = useMemo(
     () => computeInventory(entries, allocations, meals),
@@ -173,22 +175,60 @@ export function InventoryView() {
                             </span>
                             <span className="flex items-center gap-3">
                               <ExpiryBadge date={e.expiry_date} compact />
+                              <input
+                                className={`${inputCls} w-20`}
+                                type="number"
+                                min="0.01"
+                                step="any"
+                                title="Quantity to remove"
+                                value={removeQty[e.id] ?? String(e.quantity)}
+                                onChange={(ev) => {
+                                  setRemoveQty((prev) => ({
+                                    ...prev,
+                                    [e.id]: ev.target.value,
+                                  }))
+                                  setRemoveErr((prev) => ({
+                                    ...prev,
+                                    [e.id]: '',
+                                  }))
+                                }}
+                              />
                               <button
                                 className={btnDanger}
                                 onClick={(ev) => {
                                   ev.stopPropagation()
-                                  if (
-                                    confirm(
-                                      `Remove this batch (${fmtQty(e.quantity)} ${row.unit}${e.expiry_date ? `, expires ${formatDate(e.expiry_date)}` : ''})? Do this if it was used up or went bad.`,
-                                    )
-                                  ) {
-                                    void run(() => api.deleteStockEntry(e.id))
+                                  const q = Number(removeQty[e.id] ?? e.quantity)
+                                  if (!(q > 0)) {
+                                    setRemoveErr((prev) => ({
+                                      ...prev,
+                                      [e.id]: 'Enter a quantity above 0.',
+                                    }))
+                                    return
                                   }
+                                  if (q > e.quantity) {
+                                    setRemoveErr((prev) => ({
+                                      ...prev,
+                                      [e.id]: `Only ${fmtQty(e.quantity)} ${row.unit} available in this batch.`,
+                                    }))
+                                    return
+                                  }
+                                  const full = q >= e.quantity
+                                  const ok = confirm(
+                                    full
+                                      ? `Remove this batch (${fmtQty(e.quantity)} ${row.unit}${e.expiry_date ? `, expires ${formatDate(e.expiry_date)}` : ''})? Do this if it was used up or went bad.`
+                                      : `Remove ${fmtQty(q)} ${row.unit} from this batch${e.expiry_date ? ` (expires ${formatDate(e.expiry_date)})` : ''}?`,
+                                  )
+                                  if (ok) void run(() => api.removeStock(e.id, q))
                                 }}
                               >
                                 Remove
                               </button>
                             </span>
+                            {removeErr[e.id] && (
+                              <p className="w-full text-xs text-red-600 dark:text-red-400">
+                                {removeErr[e.id]}
+                              </p>
+                            )}
                           </li>
                         ))}
                       </ul>
