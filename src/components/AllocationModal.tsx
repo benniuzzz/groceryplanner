@@ -4,6 +4,7 @@ import { computeInventory, rowKey, sortByExpiryThenName } from '../lib/inventory
 import { fmtQty } from '../lib/utils'
 import type { Meal } from '../lib/types'
 import { useAppData } from '../hooks/useAppData'
+import { ItemCombobox } from './ItemCombobox'
 import { btnPrimary, inputCls } from './ui'
 
 export function AllocationModal({
@@ -35,26 +36,9 @@ export function AllocationModal({
       mealAllocations.some((a) => a.item_id === r.itemId && a.unit === r.unit),
   )
 
-  const availableNames = useMemo(
-    () =>
-      new Set(
-        inventory.filter((r) => r.leftover > 0).map((r) => r.name.toLowerCase()),
-      ),
-    [inventory],
-  )
-  const mealAllocatedNames = useMemo(
-    () =>
-      new Set(
-        mealAllocations
-          .map((a) => a.items?.name?.toLowerCase())
-          .filter((n): n is string => !!n),
-      ),
-    [mealAllocations],
-  )
-  const wlOptions = allowedItems.filter(
-    (item) =>
-      !availableNames.has(item.name.toLowerCase()) &&
-      !mealAllocatedNames.has(item.name.toLowerCase()),
+  const wlOptions = useMemo(
+    () => [...allowedItems].sort((a, b) => a.name.localeCompare(b.name)),
+    [allowedItems],
   )
 
   const add = async () => {
@@ -164,21 +148,17 @@ export function AllocationModal({
           {!meal.cooked && (
             <div className="mt-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
               <div className="flex flex-wrap items-center gap-2">
-                <select
-                  className={`${inputCls} min-w-[180px] flex-1`}
-                  value={wlSelectedId}
-                  onChange={(e) => {
-                    setWlSelectedId(e.target.value)
-                    setWlError(null)
-                  }}
-                >
-                  <option value="">Choose a grocery…</option>
-                  {wlOptions.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name} — {item.unit}
-                    </option>
-                  ))}
-                </select>
+                <div className="min-w-[180px] flex-1">
+                  <ItemCombobox
+                    options={wlOptions}
+                    value={wlSelectedId}
+                    onChange={(id) => {
+                      setWlSelectedId(id)
+                      setWlError(null)
+                    }}
+                    placeholder="Choose a grocery…"
+                  />
+                </div>
                 <input
                   className={`${inputCls} w-24`}
                   type="number"
@@ -200,9 +180,8 @@ export function AllocationModal({
               )}
               {wlOptions.length === 0 && mealWishlist.length === 0 && (
                 <p className="mt-2 text-sm text-slate-400 dark:text-slate-500">
-                  Nothing left to wish for. Add more items in{' '}
-                  <em>Settings</em>, or the groceries may already be in your
-                  inventory.
+                  No groceries configured yet. Add the items you want to buy in{' '}
+                  <em>Settings</em>.
                 </p>
               )}
             </div>
