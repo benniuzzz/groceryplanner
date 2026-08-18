@@ -50,9 +50,8 @@ export function SettingsView() {
     <section>
       <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Item names</h2>
       <p className="mt-1 max-w-prose text-sm text-slate-500 dark:text-slate-400">
-        Only the items listed here can be logged in the Shopping page. The unit
-        you choose for each item is applied automatically, so you won&apos;t
-        pick a unit when adding groceries.
+        Only items listed here can be logged in Shopping; each one&apos;s unit is
+        applied automatically.
       </p>
 
       <div className="mt-4 flex flex-wrap items-end gap-2">

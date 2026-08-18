@@ -12,7 +12,6 @@ type SortKey = 'name' | 'leftover' | 'expiry'
 export function InventoryView() {
   const { entries, allocations, meals, run } = useAppData()
   const [sortKey, setSortKey] = useState<SortKey>('name')
-  const [hideZero, setHideZero] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [removeQty, setRemoveQty] = useState<Record<string, string>>({})
   const [removeErr, setRemoveErr] = useState<Record<string, string>>({})
@@ -23,8 +22,7 @@ export function InventoryView() {
   )
 
   const visible = useMemo(() => {
-    let list = hideZero ? rows.filter((r) => r.leftover > 0) : rows
-    list = [...list].sort((a, b) => {
+    return [...rows].sort((a, b) => {
       if (sortKey === 'name') return a.name.localeCompare(b.name)
       if (sortKey === 'leftover') return b.leftover - a.leftover
       if (!a.earliestExpiry && !b.earliestExpiry)
@@ -33,8 +31,7 @@ export function InventoryView() {
       if (!b.earliestExpiry) return -1
       return a.earliestExpiry.localeCompare(b.earliestExpiry)
     })
-    return list
-  }, [rows, sortKey, hideZero])
+  }, [rows, sortKey])
 
   const toggle = (key: string) => {
     setExpanded((prev) => {
@@ -51,7 +48,7 @@ export function InventoryView() {
         <div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Inventory</h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Everything currently in stock, accumulated over your shopping trips.
+            Everything in stock, gathered from your shopping trips.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -77,15 +74,6 @@ export function InventoryView() {
               <path d="M14 11v6" />
             </svg>
           </button>
-          <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-            <input
-              type="checkbox"
-              checked={hideZero}
-              onChange={(e) => setHideZero(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 accent-emerald-600 dark:border-slate-600"
-            />
-            Hide used up
-          </label>
           <select
             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-emerald-500"
             value={sortKey}

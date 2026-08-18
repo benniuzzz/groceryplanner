@@ -77,8 +77,8 @@ export function PlannerView() {
         <div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Meal planner</h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Plan the week. Click a meal to allocate groceries; mark it cooked
-            to consume them from inventory.
+            Plan the week. Click a meal to allocate groceries; when it&apos;s
+            cooked, they&apos;re consumed from inventory.
           </p>
         </div>
 

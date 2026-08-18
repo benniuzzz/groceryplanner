@@ -175,8 +175,8 @@ export function ShoppingView({ onOpenSettings }: { onOpenSettings: () => void })
       <section>
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Shopping</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Log what you bought. Items can only be chosen from your configured
-          list; each one carries its own unit automatically.
+          Log what you bought. Pick items from your configured list — their
+          unit is applied automatically.
         </p>
 
         {options.length === 0 ? (
@@ -322,8 +322,8 @@ function WishlistSection({
           Meal Wishlist
         </h3>
         <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-          Groceries meals still need. Once bought, each is added to your
-          inventory and allocated to its meal, so it can be cooked.
+          Groceries your meals still need. Once bought, they&apos;re added to
+          inventory and reserved for their meal so it can be cooked.
         </p>
       </div>
 

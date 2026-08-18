@@ -128,9 +128,9 @@ export function AllocationModal({
             Wishlist
           </h4>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-            Groceries to buy for this meal. Buy them in the Shopping tab to add
-            them to your inventory. A meal can only be cooked once everything on
-            its wishlist is bought.
+            Groceries to buy for this meal — buy them in Shopping to stock your
+            inventory. A meal can only be cooked once its wishlist is fully
+            bought.
           </p>
           <ul className="mt-2 space-y-2">
             {mealWishlist.length === 0 && (
