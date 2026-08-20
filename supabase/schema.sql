@@ -98,6 +98,42 @@ create table if not exists meal_wishlist (
 create unique index if not exists meal_wishlist_meal_item_uniq
   on meal_wishlist (meal_id, allowed_item_id, unit);
 
+-- Free-text ingredients attached to a meal that are completely untracked:
+-- they are not drawn from inventory, not consumed by cook_meal, not restored
+-- by uncook_meal, and not bought through purchase_wishlist. The name is
+-- arbitrary text (no FK to items or allowed_items). Rows cascade away when
+-- the meal is deleted, like the other two meal-child tables.
+create table if not exists meal_untracked (
+  id uuid primary key default gen_random_uuid(),
+  meal_id uuid not null references meals(id) on delete cascade,
+  name text not null,
+  unit text not null,
+  quantity double precision not null check (quantity > 0),
+  created_at timestamptz not null default now(),
+  unique (meal_id, name, unit)
+);
+
+-- Curated list of quantity units shown in dropdowns wherever a unit is
+-- chosen (item forms, untracked ingredients). Unit columns elsewhere are
+-- free text with no FK, so this list only populates dropdowns. Renaming or
+-- deleting a unit is blocked by unit_in_use() when it is referenced anywhere.
+create table if not exists units (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists units_name_lower_uniq on units (lower(name));
+
+-- Seed the default unit set (idempotent). Ordering by created_at preserves
+-- this familiar order in dropdowns; user-added units append at the end.
+insert into units (name)
+select v from (values
+  ('pcs'), ('kg'), ('g'), ('L'), ('ml'),
+  ('cans'), ('packs'), ('boxes'), ('bags'), ('bunches'), ('other')
+) as t(v)
+where not exists (select 1 from units where lower(name) = lower(t.v));
+
 create index if not exists meal_consumption_meal_idx on meal_consumption (meal_id);
 
 alter table meal_consumption add column if not exists cost numeric(10, 2);
@@ -113,7 +149,9 @@ alter table stock_entries enable row level security;
 alter table meals enable row level security;
 alter table allocations enable row level security;
 alter table meal_wishlist enable row level security;
+alter table meal_untracked enable row level security;
 alter table meal_consumption enable row level security;
+alter table units enable row level security;
 
 drop policy if exists items_all on items;
 drop policy if exists allowed_items_all on allowed_items;
@@ -121,7 +159,9 @@ drop policy if exists stock_entries_all on stock_entries;
 drop policy if exists meals_all on meals;
 drop policy if exists allocations_all on allocations;
 drop policy if exists meal_wishlist_all on meal_wishlist;
+drop policy if exists meal_untracked_all on meal_untracked;
 drop policy if exists meal_consumption_all on meal_consumption;
+drop policy if exists units_all on units;
 
 create policy items_all on items for all to anon, authenticated using (true) with check (true);
 create policy allowed_items_all on allowed_items for all to anon, authenticated using (true) with check (true);
@@ -129,7 +169,9 @@ create policy stock_entries_all on stock_entries for all to anon, authenticated 
 create policy meals_all on meals for all to anon, authenticated using (true) with check (true);
 create policy allocations_all on allocations for all to anon, authenticated using (true) with check (true);
 create policy meal_wishlist_all on meal_wishlist for all to anon, authenticated using (true) with check (true);
+create policy meal_untracked_all on meal_untracked for all to anon, authenticated using (true) with check (true);
 create policy meal_consumption_all on meal_consumption for all to anon, authenticated using (true) with check (true);
+create policy units_all on units for all to anon, authenticated using (true) with check (true);
 
 -- Returns the item id for a name, creating the item if it does not exist yet.
 create or replace function get_or_create_item(p_name text)
@@ -410,9 +452,27 @@ begin
 end;
 $$;
 
+-- Returns true if the given unit string is referenced on any row of the six
+-- unit-bearing tables. The client uses this to block rename/delete of a unit
+-- that is still in use, so historical free-text unit values stay consistent.
+create or replace function unit_in_use(p_unit text)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists(select 1 from allowed_items where unit = p_unit)
+      or exists(select 1 from stock_entries where unit = p_unit)
+      or exists(select 1 from allocations where unit = p_unit)
+      or exists(select 1 from meal_consumption where unit = p_unit)
+      or exists(select 1 from meal_wishlist where unit = p_unit)
+      or exists(select 1 from meal_untracked where unit = p_unit);
+$$;
+
 grant execute on function get_or_create_item(text) to anon, authenticated;
 grant execute on function cook_meal(uuid) to anon, authenticated;
 grant execute on function uncook_meal(uuid) to anon, authenticated;
 grant execute on function clear_purchase_history() to anon, authenticated;
 grant execute on function remove_stock(uuid, double precision) to anon, authenticated;
 grant execute on function purchase_wishlist(uuid[], double precision[], date, numeric) to anon, authenticated;
+grant execute on function unit_in_use(text) to anon, authenticated;

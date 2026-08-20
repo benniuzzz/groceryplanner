@@ -4,18 +4,22 @@ import type {
   Allocation,
   Item,
   Meal,
+  MealUntracked,
   MealWishlist,
   StockEntry,
+  Unit,
 } from '../lib/types'
 
 export interface AppData {
   allowedItems: AllowedItem[]
   items: Item[]
+  units: Unit[]
   entries: StockEntry[]
   allEntries: StockEntry[]
   meals: Meal[]
   allocations: Allocation[]
   wishlist: MealWishlist[]
+  untracked: MealUntracked[]
   loading: boolean
   error: string | null
   refresh: () => Promise<void>

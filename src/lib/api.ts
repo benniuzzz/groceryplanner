@@ -5,8 +5,10 @@ import type {
   Item,
   Meal,
   MealSlot,
+  MealUntracked,
   MealWishlist,
   StockEntry,
+  Unit,
 } from './types'
 
 export async function fetchAllowedItems(): Promise<AllowedItem[]> {
@@ -66,6 +68,70 @@ export async function fetchItems(): Promise<Item[]> {
   return data as Item[]
 }
 
+export async function fetchUnits(): Promise<Unit[]> {
+  const { data, error } = await supabase
+    .from('units')
+    .select('*')
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data as Unit[]
+}
+
+export async function addUnit(name: string): Promise<void> {
+  const { error } = await supabase.from('units').insert({ name })
+  if (error) throw error
+}
+
+export async function updateUnit(id: string, newName: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('units')
+    .select('name')
+    .eq('id', id)
+    .single()
+  if (error) throw error
+  const oldName = (data as { name: string }).name
+  if (oldName !== newName) {
+    const { data: inUse, error: checkError } = await supabase.rpc('unit_in_use', {
+      p_unit: oldName,
+    })
+    if (checkError) throw checkError
+    if (inUse === true) {
+      throw new Error(
+        `"${oldName}" is in use on inventory or meals and cannot be renamed.`,
+      )
+    }
+  }
+  const { error: updateError } = await supabase
+    .from('units')
+    .update({ name: newName })
+    .eq('id', id)
+  if (updateError) throw updateError
+}
+
+export async function removeUnit(id: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('units')
+    .select('name')
+    .eq('id', id)
+    .single()
+  if (error) throw error
+  const name = (data as { name: string }).name
+  const { data: inUse, error: checkError } = await supabase.rpc('unit_in_use', {
+    p_unit: name,
+  })
+  if (checkError) throw checkError
+  if (inUse === true) {
+    throw new Error(
+      `"${name}" is in use on inventory or meals and cannot be deleted.`,
+    )
+  }
+  const { error: deleteError } = await supabase
+    .from('units')
+    .delete()
+    .eq('id', id)
+  if (deleteError) throw deleteError
+}
+
 export async function fetchStockEntries(
   includeInactive = false,
 ): Promise<StockEntry[]> {
@@ -107,6 +173,12 @@ export async function fetchMealWishlist(): Promise<MealWishlist[]> {
     .select('*, allowed_items(id, name, unit)')
   if (error) throw error
   return data as MealWishlist[]
+}
+
+export async function fetchMealUntracked(): Promise<MealUntracked[]> {
+  const { data, error } = await supabase.from('meal_untracked').select('*')
+  if (error) throw error
+  return data as MealUntracked[]
 }
 
 export interface NewGrocery {
@@ -224,6 +296,26 @@ export async function upsertWishlistAllocation(
 
 export async function deleteWishlistAllocation(id: string): Promise<void> {
   const { error } = await supabase.from('meal_wishlist').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function upsertUntrackedIngredient(
+  mealId: string,
+  name: string,
+  unit: string,
+  quantity: number,
+): Promise<void> {
+  const { error } = await supabase
+    .from('meal_untracked')
+    .upsert(
+      { meal_id: mealId, name, unit, quantity },
+      { onConflict: 'meal_id,name,unit' },
+    )
+  if (error) throw error
+}
+
+export async function deleteUntrackedIngredient(id: string): Promise<void> {
+  const { error } = await supabase.from('meal_untracked').delete().eq('id', id)
   if (error) throw error
 }
 

@@ -7,6 +7,7 @@ import {
   type Allocation,
   type Meal,
   type MealSlot,
+  type MealUntracked,
   type MealWishlist,
 } from '../lib/types'
 
@@ -39,10 +40,12 @@ export function TodayView({
   meals,
   allocations,
   wishlist,
+  untracked,
 }: {
   meals: Meal[]
   allocations: Allocation[]
   wishlist: MealWishlist[]
+  untracked: MealUntracked[]
 }) {
   const today = new Date()
   const dateLabel = formatDateTime(today.toISOString())
@@ -51,8 +54,8 @@ export function TodayView({
   const [copied, setCopied] = useState(false)
 
   const text = useMemo(
-    () => buildTodayText(meals, allocations, wishlist, dateLabel),
-    [meals, allocations, wishlist, dateLabel],
+    () => buildTodayText(meals, allocations, wishlist, untracked, dateLabel),
+    [meals, allocations, wishlist, untracked, dateLabel],
   )
 
   const copy = async () => {
@@ -163,7 +166,7 @@ export function TodayView({
                     )}
                   </div>
                   <ul className="mt-1 space-y-0.5">
-                    {mealIngredients(allocations, wishlist, meal.id).map((ig) => (
+                    {mealIngredients(allocations, wishlist, untracked, meal.id).map((ig) => (
                       <li key={ig.key} className="text-slate-600 dark:text-slate-300">
                         {ig.name}
                         <span className="text-slate-400 dark:text-slate-500">
@@ -172,7 +175,7 @@ export function TodayView({
                         </span>
                       </li>
                     ))}
-                    {mealIngredients(allocations, wishlist, meal.id).length === 0 && (
+                    {mealIngredients(allocations, wishlist, untracked, meal.id).length === 0 && (
                       <li className="text-xs text-slate-400 dark:text-slate-500">
                         No ingredients allocated
                       </li>
@@ -202,6 +205,7 @@ interface IngredientLine {
 function mealIngredients(
   allocations: Allocation[],
   wishlist: MealWishlist[],
+  untracked: MealUntracked[],
   mealId: string,
 ): IngredientLine[] {
   const lines: IngredientLine[] = [
@@ -219,6 +223,14 @@ function mealIngredients(
         quantity: w.quantity,
         unit: w.unit,
       })),
+    ...untracked
+      .filter((u) => u.meal_id === mealId)
+      .map((u) => ({
+        key: u.id,
+        name: u.name,
+        quantity: u.quantity,
+        unit: u.unit,
+      })),
   ]
   return lines
 }
@@ -227,6 +239,7 @@ function buildTodayText(
   meals: Meal[],
   allocations: Allocation[],
   wishlist: MealWishlist[],
+  untracked: MealUntracked[],
   dateLabel: string,
 ): string {
   const lines: string[] = []
@@ -241,7 +254,7 @@ function buildTodayText(
     }
     for (const meal of slotMeals) {
       lines.push(`  - ${meal.name}`)
-      const ings = mealIngredients(allocations, wishlist, meal.id)
+      const ings = mealIngredients(allocations, wishlist, untracked, meal.id)
       if (ings.length === 0) {
         lines.push('      No ingredients allocated')
       }

@@ -11,6 +11,12 @@ export interface Item {
   created_at: string
 }
 
+export interface Unit {
+  id: string
+  name: string
+  created_at: string
+}
+
 export interface StockEntry {
   id: string
   item_id: string
@@ -55,6 +61,15 @@ export interface Allocation {
   items?: { id: string; name: string }
 }
 
+export interface MealUntracked {
+  id: string
+  meal_id: string
+  name: string
+  unit: string
+  quantity: number
+  created_at: string
+}
+
 export interface InventoryRow {
   itemId: string
   name: string
@@ -65,20 +80,6 @@ export interface InventoryRow {
   earliestExpiry: string | null
   entries: StockEntry[]
 }
-
-export const UNITS = [
-  'pcs',
-  'kg',
-  'g',
-  'L',
-  'ml',
-  'cans',
-  'packs',
-  'boxes',
-  'bags',
-  'bunches',
-  'other',
-] as const
 
 export const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 

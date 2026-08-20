@@ -4,6 +4,7 @@ export function MealCard({
   meal,
   allocationCount,
   wishlistCount,
+  untrackedCount,
   canCook,
   selected,
   onSelect,
@@ -13,6 +14,7 @@ export function MealCard({
   meal: Meal
   allocationCount: number
   wishlistCount: number
+  untrackedCount: number
   canCook: boolean
   selected: boolean
   onSelect: () => void
@@ -43,6 +45,11 @@ export function MealCard({
           {allocationCount > 0 && (
             <span className="text-xs text-slate-400 dark:text-slate-500">
               {allocationCount} item{allocationCount === 1 ? '' : 's'}
+            </span>
+          )}
+          {untrackedCount > 0 && (
+            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-700 dark:text-slate-300">
+              {untrackedCount} other
             </span>
           )}
         </span>

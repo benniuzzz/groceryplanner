@@ -17,7 +17,7 @@ import { TodayView } from './TodayView'
 import { inputCls } from './ui'
 
 export function PlannerView() {
-  const { meals, allocations, entries, wishlist, run } = useAppData()
+  const { meals, allocations, entries, wishlist, untracked, run } = useAppData()
   const [selectedMealId, setSelectedMealId] = useState<string | null>(null)
   const [addingCell, setAddingCell] = useState<{
     day: number
@@ -44,6 +44,9 @@ export function PlannerView() {
 
   const wishlistCount = (mealId: string) =>
     wishlist.filter((w) => w.meal_id === mealId).length
+
+  const untrackedCount = (mealId: string) =>
+    untracked.filter((u) => u.meal_id === mealId).length
 
   const canCook = (mealId: string) => wishlistCount(mealId) === 0
 
@@ -82,7 +85,7 @@ export function PlannerView() {
           </p>
         </div>
 
-        <TodayView meals={todayMeals} allocations={allocations} wishlist={wishlist} />
+        <TodayView meals={todayMeals} allocations={allocations} wishlist={wishlist} untracked={untracked} />
 
         <div className="mt-4">
           <div className="mb-2 flex items-center justify-end gap-2">
@@ -187,6 +190,7 @@ export function PlannerView() {
                           meal={meal}
                           allocationCount={allocationCount(meal.id)}
                           wishlistCount={wishlistCount(meal.id)}
+                          untrackedCount={untrackedCount(meal.id)}
                           canCook={canCook(meal.id)}
                           selected={meal.id === selectedMealId}
                           onSelect={() => setSelectedMealId(meal.id)}

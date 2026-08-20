@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import * as api from '../lib/api'
 import { computeInventory, rowKey, sortByExpiryThenName } from '../lib/inventory'
 import { fmtQty } from '../lib/utils'
-import type { Meal } from '../lib/types'
+import { type Meal } from '../lib/types'
 import { useAppData } from '../hooks/useAppData'
 import { ItemCombobox } from './ItemCombobox'
+import { UnitSelect } from './UnitSelect'
 import { btnPrimary, inputCls } from './ui'
 
 export function AllocationModal({
@@ -14,13 +15,21 @@ export function AllocationModal({
   meal: Meal
   onClose: () => void
 }) {
-  const { entries, allocations, meals, wishlist, allowedItems, run } = useAppData()
+  const { entries, allocations, meals, wishlist, untracked, allowedItems, units, run } = useAppData()
   const [selectedKey, setSelectedKey] = useState('')
   const [qty, setQty] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [wlSelectedId, setWlSelectedId] = useState('')
   const [wlQty, setWlQty] = useState('')
   const [wlError, setWlError] = useState<string | null>(null)
+  const [unName, setUnName] = useState('')
+  const [unUnit, setUnUnit] = useState<string>('')
+  const [unQty, setUnQty] = useState('')
+  const [unError, setUnError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!unUnit && units.length > 0) setUnUnit(units[0].name)
+  }, [units, unUnit])
 
   const inventory = useMemo(
     () => sortByExpiryThenName(computeInventory(entries, allocations, meals)),
@@ -29,6 +38,7 @@ export function AllocationModal({
 
   const mealAllocations = allocations.filter((a) => a.meal_id === meal.id)
   const mealWishlist = wishlist.filter((w) => w.meal_id === meal.id)
+  const mealUntracked = untracked.filter((u) => u.meal_id === meal.id)
 
   const options = inventory.filter(
     (r) =>
@@ -81,6 +91,28 @@ export function AllocationModal({
     }
   }
 
+  const addUntracked = async () => {
+    const name = unName.trim()
+    const q = Number(unQty)
+    if (!name || !(q > 0)) {
+      setUnError('Enter an ingredient name and a quantity above 0.')
+      return
+    }
+    if (!unUnit) {
+      setUnError('Pick a unit — add one in Settings.')
+      return
+    }
+    const ok = await run(() =>
+      api.upsertUntrackedIngredient(meal.id, name, unUnit, q),
+    )
+    if (ok) {
+      setUnName('')
+      setUnQty('')
+      setUnUnit(units[0]?.name ?? '')
+      setUnError(null)
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
@@ -96,7 +128,7 @@ export function AllocationModal({
             <p className="text-sm text-slate-500 dark:text-slate-400">
               {meal.cooked
                 ? 'Cooked — these groceries were consumed.'
-                : 'Allocate groceries from your inventory, or add what you still need to buy.'}
+                : 'Allocate groceries from your inventory, add what you still need to buy, or note other untracked ingredients.'}
             </p>
           </div>
           <button
@@ -269,6 +301,94 @@ export function AllocationModal({
                 <p className="mt-2 text-sm text-slate-400 dark:text-slate-500">
                   No leftovers available. Add to Shopping first.
                 </p>
+              )}
+            </div>
+          )}
+        </section>
+
+        <section className="mt-5">
+          <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            Other ingredients
+          </h4>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            Free-text ingredients that aren&apos;t tracked in inventory or the
+            shopping list. Cooking or deleting the meal never affects them.
+          </p>
+          <ul className="mt-2 space-y-2">
+            {mealUntracked.length === 0 && (
+              <li className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-center text-sm text-slate-400 dark:border-slate-700 dark:text-slate-500">
+                No other ingredients added.
+              </li>
+            )}
+            {mealUntracked.map((u) => (
+              <li
+                key={u.id}
+                className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700"
+              >
+                <span className="font-medium text-slate-800 dark:text-slate-100">
+                  {u.name}
+                  <span className="font-normal text-slate-400 dark:text-slate-500">
+                    {' '}
+                    &middot; {fmtQty(u.quantity)} {u.unit}
+                  </span>
+                </span>
+                {!meal.cooked && (
+                  <button
+                    className="text-xs text-slate-400 hover:text-red-600 dark:hover:text-red-400"
+                    onClick={() => void run(() => api.deleteUntrackedIngredient(u.id))}
+                  >
+                    Remove
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+          {!meal.cooked && (
+            <div className="mt-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  className={`${inputCls} min-w-[180px] flex-1`}
+                  type="text"
+                  placeholder="Ingredient name…"
+                  value={unName}
+                  onChange={(e) => {
+                    setUnName(e.target.value)
+                    setUnError(null)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void addUntracked()
+                  }}
+                />
+                <UnitSelect
+                  value={unUnit}
+                  className="w-24"
+                  onChange={(v) => {
+                    setUnUnit(v)
+                    setUnError(null)
+                  }}
+                  ariaLabel="Unit"
+                />
+                <input
+                  className={`${inputCls} w-24`}
+                  type="number"
+                  min="0.01"
+                  step="any"
+                  placeholder="Qty"
+                  value={unQty}
+                  onChange={(e) => {
+                    setUnQty(e.target.value)
+                    setUnError(null)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void addUntracked()
+                  }}
+                />
+                <button className={btnPrimary} onClick={() => void addUntracked()}>
+                  Add
+                </button>
+              </div>
+              {unError && (
+                <p className="mt-2 text-sm text-red-600 dark:text-red-400">{unError}</p>
               )}
             </div>
           )}
