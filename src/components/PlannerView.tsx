@@ -208,6 +208,9 @@ export function PlannerView() {
                               void run(() => api.deleteMeal(meal.id))
                             }
                           }}
+                          onRename={(name) =>
+                            run(() => api.updateMeal(meal.id, name))
+                          }
                         />
                       ))}
                       {isAdding ? (
@@ -270,6 +273,7 @@ export function PlannerView() {
       {selectedMeal && (
         <AllocationModal
           meal={selectedMeal}
+          onRename={(name) => run(() => api.updateMeal(selectedMeal.id, name))}
           onClose={() => setSelectedMealId(null)}
         />
       )}

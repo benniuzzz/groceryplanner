@@ -234,6 +234,11 @@ export async function createMeal(
   if (error) throw error
 }
 
+export async function updateMeal(id: string, name: string): Promise<void> {
+  const { error } = await supabase.from('meals').update({ name }).eq('id', id)
+  if (error) throw error
+}
+
 export async function deleteMeal(id: string): Promise<void> {
   const { error } = await supabase.from('meals').delete().eq('id', id)
   if (error) throw error

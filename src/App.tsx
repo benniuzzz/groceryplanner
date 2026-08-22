@@ -92,10 +92,10 @@ function Shell() {
             <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
           ) : (
             <>
-              {tab === 'add' && (
-                <ShoppingView onOpenSettings={() => setTab('settings')} />
+              {tab === 'add' && <ShoppingView />}
+              {tab === 'inventory' && (
+                <InventoryView onOpenSettings={() => setTab('settings')} />
               )}
-              {tab === 'inventory' && <InventoryView />}
               {tab === 'planner' && <PlannerView />}
               {tab === 'settings' && <SettingsView />}
             </>

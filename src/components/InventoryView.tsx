@@ -5,16 +5,22 @@ import { formatDate } from '../lib/dates'
 import { fmtQty } from '../lib/utils'
 import { useAppData } from '../hooks/useAppData'
 import { ExpiryBadge } from './ExpiryBadge'
+import { AddStockModal } from './AddStockModal'
 import { btnDanger, inputCls } from './ui'
 
 type SortKey = 'name' | 'leftover' | 'expiry'
 
-export function InventoryView() {
+export function InventoryView({
+  onOpenSettings,
+}: {
+  onOpenSettings: () => void
+}) {
   const { entries, allocations, meals, run } = useAppData()
   const [sortKey, setSortKey] = useState<SortKey>('name')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [removeQty, setRemoveQty] = useState<Record<string, string>>({})
   const [removeErr, setRemoveErr] = useState<Record<string, string>>({})
+  const [showAdd, setShowAdd] = useState(false)
 
   const rows = useMemo(
     () => computeInventory(entries, allocations, meals),
@@ -52,6 +58,17 @@ export function InventoryView() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950 dark:hover:text-emerald-400"
+            title="Add items to inventory"
+            onClick={() => setShowAdd(true)}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+              <path d="M12 5v14" />
+              <path d="M5 12h14" />
+            </svg>
+          </button>
           <button
             type="button"
             className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-400"
@@ -102,7 +119,7 @@ export function InventoryView() {
             {visible.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">
-                  No groceries in your inventory yet. Add some from the Shopping tab.
+                  No groceries in your inventory yet. Use the + button above to add some.
                 </td>
               </tr>
             )}
@@ -228,6 +245,13 @@ export function InventoryView() {
           </tbody>
         </table>
       </div>
+
+      {showAdd && (
+        <AddStockModal
+          onOpenSettings={onOpenSettings}
+          onClose={() => setShowAdd(false)}
+        />
+      )}
     </section>
   )
 }

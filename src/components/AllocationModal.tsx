@@ -10,9 +10,11 @@ import { btnPrimary, inputCls } from './ui'
 
 export function AllocationModal({
   meal,
+  onRename,
   onClose,
 }: {
   meal: Meal
+  onRename: (name: string) => Promise<boolean>
   onClose: () => void
 }) {
   const { entries, allocations, meals, wishlist, untracked, allowedItems, units, run } = useAppData()
@@ -26,6 +28,8 @@ export function AllocationModal({
   const [unUnit, setUnUnit] = useState<string>('')
   const [unQty, setUnQty] = useState('')
   const [unError, setUnError] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState(false)
+  const [nameDraft, setNameDraft] = useState('')
 
   useEffect(() => {
     if (!unUnit && units.length > 0) setUnUnit(units[0].name)
@@ -113,6 +117,16 @@ export function AllocationModal({
     }
   }
 
+  const submitRename = async () => {
+    const name = nameDraft.trim()
+    if (!name || name === meal.name) {
+      setEditingName(false)
+      return
+    }
+    const ok = await onRename(name)
+    if (ok) setEditingName(false)
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
@@ -123,8 +137,33 @@ export function AllocationModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{meal.name}</h3>
+          <div className="min-w-0 flex-1">
+            {editingName ? (
+              <input
+                autoFocus
+                className={`${inputCls} w-full px-2 py-1 text-lg font-semibold`}
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void submitRename()
+                  if (e.key === 'Escape') setEditingName(false)
+                }}
+              />
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <h3 className="min-w-0 truncate text-lg font-semibold text-slate-900 dark:text-slate-100">{meal.name}</h3>
+                <button
+                  className="shrink-0 rounded px-1 py-0.5 text-sm text-slate-400 hover:bg-slate-100 hover:text-emerald-600 dark:hover:bg-slate-800 dark:hover:text-emerald-400"
+                  onClick={() => {
+                    setNameDraft(meal.name)
+                    setEditingName(true)
+                  }}
+                  title="Rename meal"
+                >
+                  &#x270E;
+                </button>
+              </div>
+            )}
             <p className="text-sm text-slate-500 dark:text-slate-400">
               {meal.cooked
                 ? 'Cooked — these groceries were consumed.'

@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import type { Meal } from '../lib/types'
+import { inputCls } from './ui'
 
 export function MealCard({
   meal,
@@ -10,6 +12,7 @@ export function MealCard({
   onSelect,
   onToggleCook,
   onDelete,
+  onRename,
 }: {
   meal: Meal
   allocationCount: number
@@ -20,7 +23,26 @@ export function MealCard({
   onSelect: () => void
   onToggleCook: () => void
   onDelete: () => void
+  onRename: (name: string) => Promise<boolean>
 }) {
+  const [editing, setEditing] = useState(false)
+  const [editName, setEditName] = useState('')
+
+  const startRename = () => {
+    setEditName(meal.name)
+    setEditing(true)
+  }
+
+  const submitRename = async () => {
+    const name = editName.trim()
+    if (!name || name === meal.name) {
+      setEditing(false)
+      return
+    }
+    const ok = await onRename(name)
+    if (ok) setEditing(false)
+  }
+
   return (
     <div
       onClick={onSelect}
@@ -32,9 +54,35 @@ export function MealCard({
             : 'border-slate-200 bg-white hover:border-emerald-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-emerald-700'
       }`}
     >
-      <div className={`font-medium ${meal.cooked ? 'line-through' : 'text-slate-800 dark:text-slate-100'}`}>
-        {meal.name}
-      </div>
+      {editing ? (
+        <input
+          autoFocus
+          className={`${inputCls} w-full min-w-0 px-2 py-1`}
+          value={editName}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => setEditName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') void submitRename()
+            if (e.key === 'Escape') setEditing(false)
+          }}
+        />
+      ) : (
+        <div className="flex items-center gap-1">
+          <div className={`min-w-0 truncate font-medium ${meal.cooked ? 'line-through' : 'text-slate-800 dark:text-slate-100'}`}>
+            {meal.name}
+          </div>
+          <button
+            className="ml-auto shrink-0 text-xs text-slate-300 hover:text-emerald-600 dark:text-slate-600 dark:hover:text-emerald-400"
+            onClick={(e) => {
+              e.stopPropagation()
+              startRename()
+            }}
+            title="Rename meal"
+          >
+            &#x270E;
+          </button>
+        </div>
+      )}
       <div className="mt-1 flex items-center justify-between gap-1">
         <span className="flex items-center gap-1.5">
           {wishlistCount > 0 && (
