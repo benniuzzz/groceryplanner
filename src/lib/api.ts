@@ -304,6 +304,20 @@ export async function deleteWishlistAllocation(id: string): Promise<void> {
   if (error) throw error
 }
 
+export async function addToToBuyList(
+  allowedItemId: string,
+  unit: string,
+  quantity: number,
+): Promise<void> {
+  const { error } = await supabase
+    .from('meal_wishlist')
+    .upsert(
+      { meal_id: null, allowed_item_id: allowedItemId, unit, quantity },
+      { onConflict: 'meal_id,allowed_item_id,unit' },
+    )
+  if (error) throw error
+}
+
 export async function upsertUntrackedIngredient(
   mealId: string,
   name: string,

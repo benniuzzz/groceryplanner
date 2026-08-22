@@ -180,17 +180,17 @@ export function AllocationModal({
 
         <section className="mt-5">
           <h4 className="text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400">
-            Wishlist
+            To-Buy List
           </h4>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-            Groceries to buy for this meal — buy them in Shopping to stock your
-            inventory. A meal can only be cooked once its wishlist is fully
+            Groceries to buy for this meal — buy them in Groceries to stock your
+            inventory. A meal can only be cooked once its to-buy list is fully
             bought.
           </p>
           <ul className="mt-2 space-y-2">
             {mealWishlist.length === 0 && (
               <li className="rounded-lg border border-dashed border-slate-200 px-3 py-3 text-center text-sm text-slate-400 dark:border-slate-700 dark:text-slate-500">
-                Nothing on the wishlist.
+                Nothing on the to-buy list yet.
               </li>
             )}
             {mealWishlist.map((w) => (
@@ -243,7 +243,7 @@ export function AllocationModal({
                   }}
                 />
                 <button className={btnPrimary} onClick={() => void addWishlist()}>
-                  Add to wishlist
+                  Add to To-Buy List
                 </button>
               </div>
               {wlError && (
@@ -338,7 +338,7 @@ export function AllocationModal({
               {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
               {options.length === 0 && (
                 <p className="mt-2 text-sm text-slate-400 dark:text-slate-500">
-                  No leftovers available. Add to Shopping first.
+                  No leftovers available. Add stock in Groceries first.
                 </p>
               )}
             </div>
@@ -351,7 +351,7 @@ export function AllocationModal({
           </h4>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
             Free-text ingredients that aren&apos;t tracked in inventory or the
-            shopping list. Cooking or deleting the meal never affects them.
+            to-buy list. Cooking or deleting the meal never affects them.
           </p>
           <ul className="mt-2 space-y-2">
             {mealUntracked.length === 0 && (

@@ -49,7 +49,7 @@ export function SettingsView() {
   const remove = (id: string, name: string) => {
     if (
       confirm(
-        `Remove "${name}" from the allowed list? Existing inventory and history are kept, but it can no longer be added in Shopping.`,
+        `Remove "${name}" from the allowed list? Existing inventory and history are kept, but it can no longer be added in Groceries.`,
       )
     ) {
       void run(() => api.removeAllowedItem(id))
@@ -92,7 +92,7 @@ export function SettingsView() {
       <section>
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Item names</h2>
         <p className="mt-1 max-w-prose text-sm text-slate-500 dark:text-slate-400">
-          Only items listed here can be logged in Shopping; each one&apos;s unit is
+          Only items listed here can be logged in Groceries; each one&apos;s unit is
           applied automatically.
         </p>
 
@@ -129,7 +129,7 @@ export function SettingsView() {
         <div className="mt-6">
           {allowedItems.length === 0 ? (
             <p className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
-              No allowed items yet. Add one above, then head to the Shopping page
+              No allowed items yet. Add one above, then head to the Groceries page
               to log groceries.
             </p>
           ) : (

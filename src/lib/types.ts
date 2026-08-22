@@ -44,7 +44,7 @@ export interface Meal {
 
 export interface MealWishlist {
   id: string
-  meal_id: string
+  meal_id: string | null
   allowed_item_id: string
   unit: string
   quantity: number

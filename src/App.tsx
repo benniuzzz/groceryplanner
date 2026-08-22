@@ -3,8 +3,7 @@ import { isSupabaseConfigured } from './lib/supabase'
 import { AppDataProvider } from './hooks/AppDataProvider'
 import { useAppData } from './hooks/useAppData'
 import { useTheme } from './hooks/useTheme'
-import { ShoppingView } from './components/ShoppingView'
-import { InventoryView } from './components/InventoryView'
+import { GroceriesView } from './components/GroceriesView'
 import { PlannerView } from './components/PlannerView'
 import { SettingsView } from './components/SettingsView'
 import { Sidebar } from './components/Sidebar'
@@ -20,7 +19,7 @@ export default function App() {
 }
 
 function Shell() {
-  const [tab, setTab] = useState<Tab>('add')
+  const [tab, setTab] = useState<Tab>('groceries')
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem('sidebar-collapsed') === '1'
@@ -92,9 +91,8 @@ function Shell() {
             <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
           ) : (
             <>
-              {tab === 'add' && <ShoppingView />}
-              {tab === 'inventory' && (
-                <InventoryView onOpenSettings={() => setTab('settings')} />
+              {tab === 'groceries' && (
+                <GroceriesView onOpenSettings={() => setTab('settings')} />
               )}
               {tab === 'planner' && <PlannerView />}
               {tab === 'settings' && <SettingsView />}

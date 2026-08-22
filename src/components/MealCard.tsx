@@ -121,7 +121,7 @@ export function MealCard({
                 ? 'Uncook and restore stock'
                 : canCook
                   ? 'Mark cooked'
-                  : 'Buy all wishlist items first'
+                  : 'Buy everything on the to-buy list first'
             }
           >
             <svg

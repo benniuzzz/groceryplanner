@@ -82,21 +82,29 @@ create table if not exists meal_consumption (
   consumed_at timestamptz not null default now()
 );
 
--- Groceries a meal needs but that aren't in the inventory yet. Items here are
--- chosen from allowed_items; a meal is cookable only when it has no rows here.
--- Buying them via purchase_wishlist converts each row into a stock entry plus
--- a regular inventory allocation, then deletes the row.
+-- Groceries that aren't in the inventory yet, chosen from allowed_items.
+-- Rows usually belong to a meal (meal_id set): that meal is cookable only
+-- when it has no rows here. meal_id may also be NULL for items added directly
+-- to the To-Buy List — those are general household wants: they never gate any
+-- meal. Buying rows via purchase_wishlist converts each into a stock entry,
+-- plus an inventory allocation when the row belongs to a meal, then deletes
+-- the row.
 create table if not exists meal_wishlist (
   id uuid primary key default gen_random_uuid(),
-  meal_id uuid not null references meals(id) on delete cascade,
+  meal_id uuid references meals(id) on delete cascade,
   allowed_item_id uuid not null references allowed_items(id) on delete cascade,
   unit text not null,
   quantity double precision not null check (quantity > 0),
   created_at timestamptz not null default now()
 );
 
+alter table meal_wishlist alter column meal_id drop not null;
+
+-- NULLS NOT DISTINCT so re-adding the same item + unit without a meal merges
+-- into the existing row via upsert instead of stacking duplicates (PG 15+).
+drop index if exists meal_wishlist_meal_item_uniq;
 create unique index if not exists meal_wishlist_meal_item_uniq
-  on meal_wishlist (meal_id, allowed_item_id, unit);
+  on meal_wishlist (meal_id, allowed_item_id, unit) nulls not distinct;
 
 -- Free-text ingredients attached to a meal that are completely untracked:
 -- they are not drawn from inventory, not consumed by cook_meal, not restored
@@ -356,6 +364,9 @@ $$;
 -- The supplied cost is treated as the TOTAL for all purchased rows and is split
 -- proportionally by the purchased (not wishlist) quantity; the last row absorbs
 -- rounding so the shares always sum exactly to the total.
+--
+-- Rows with a null meal_id (general To-Buy List items) skip the allocation
+-- step: their purchased amount lands purely as free household stock.
 create or replace function purchase_wishlist(p_ids uuid[], p_qtys double precision[], p_expiry date, p_cost numeric)
 returns void
 language plpgsql
@@ -438,10 +449,14 @@ begin
     insert into stock_entries (item_id, unit, quantity, expiry_date, cost)
     values (v_item_id, w.unit, v_bought, p_expiry, v_share);
 
-    insert into allocations (meal_id, item_id, unit, quantity)
-    values (w.meal_id, v_item_id, w.unit, v_alloc)
-    on conflict (meal_id, item_id, unit) do update
-      set quantity = allocations.quantity + excluded.quantity;
+    -- General list rows have no meal to reserve for: the purchased amount
+    -- stays as free, unallocated household stock.
+    if w.meal_id is not null then
+      insert into allocations (meal_id, item_id, unit, quantity)
+      values (w.meal_id, v_item_id, w.unit, v_alloc)
+      on conflict (meal_id, item_id, unit) do update
+        set quantity = allocations.quantity + excluded.quantity;
+    end if;
 
     if v_bought < w.quantity then
       update meal_wishlist set quantity = quantity - v_bought where id = w.id;
