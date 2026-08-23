@@ -30,6 +30,7 @@ React 19 + Vite + TypeScript app (a household grocery planner) backed by Supabas
 - No router — tab switching is plain `useState` in `src/App.tsx`. New views go in `src/components/` and are registered in `NAV_ITEMS` (`src/components/nav.tsx`).
 - Data flow: `AppDataProvider` (`src/hooks/`) fetches all four tables in parallel and exposes `useAppData()`. Mutations call `api.*` (in `src/lib/api.ts`) wrapped in `run(fn)`, which refreshes data and alerts on error. Use `run` for every mutation.
 - Shared class strings live in `src/components/ui.ts` (`btnPrimary`, `inputCls`, etc.) — reuse them instead of restyling.
+- PWA: `vite-plugin-pwa` in `vite.config.ts` generates the manifest + service worker (auto-update, precached app shell). Manifest icons are PNGs generated from `public/favicon.svg` via `@vite-pwa/assets-generator` (preset `minimal-2023`) — regenerate them if the favicon changes. Supabase traffic is not cached; offline only serves the shell.
 
 ## Deploy
 
