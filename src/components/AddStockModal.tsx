@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import * as api from '../lib/api'
 import { useAppData } from '../hooks/useAppData'
 import { ItemCombobox } from './ItemCombobox'
+import { InfoTooltip } from './InfoTooltip'
 import { btnPrimary, inputCls } from './ui'
 
 export function AddStockModal({
@@ -66,11 +67,8 @@ export function AddStockModal({
           <div>
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               Add to inventory
+              <InfoTooltip text="Pick items from your configured list — their unit is applied automatically." />
             </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Pick items from your configured list — their unit is applied
-              automatically.
-            </p>
           </div>
           <button
             className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"

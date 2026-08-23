@@ -9,6 +9,7 @@ import { ExpiryBadge } from './ExpiryBadge'
 import { AddStockModal } from './AddStockModal'
 import { AddToListModal } from './AddToListModal'
 import { BuyWishlistModal } from './BuyWishlistModal'
+import { InfoTooltip } from './InfoTooltip'
 import { btnDanger, btnPrimary, inputCls } from './ui'
 
 interface WishlistGroup {
@@ -119,11 +120,10 @@ export function GroceriesView({
   return (
     <div className="space-y-8">
       <section>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Groceries</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Your meals&apos; to-buy list, current stock, and purchase history in
-          one place — buying from the list lands straight in inventory.
-        </p>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+          Groceries
+          <InfoTooltip text="Your meals' to-buy list, current stock, and purchase history in one place — buying from the list lands straight in inventory." />
+        </h2>
         {message && (
           <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
             {message}
@@ -180,12 +180,8 @@ function ToBuyListSection({
         <div>
           <h3 className="text-md font-semibold text-slate-900 dark:text-slate-100">
             To-Buy List
+            <InfoTooltip text="Groceries you still need — from planned meals or added directly. Once bought, they're added to inventory and reserved for their meal so it can be cooked." />
           </h3>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Groceries you still need — from planned meals or added directly.
-            Once bought, they&apos;re added to inventory and reserved for their
-            meal so it can be cooked.
-          </p>
         </div>
         <button
           type="button"
@@ -335,10 +331,10 @@ function InventorySection({
     <section>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-md font-semibold text-slate-900 dark:text-slate-100">Inventory</h3>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Everything in stock, gathered from your shopping trips.
-          </p>
+          <h3 className="text-md font-semibold text-slate-900 dark:text-slate-100">
+            Inventory
+            <InfoTooltip text="Everything in stock, gathered from your shopping trips." />
+          </h3>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -561,8 +557,10 @@ function PurchaseHistorySection({
     <section>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-md font-semibold text-slate-900 dark:text-slate-100">Purchase History</h3>
-          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Every purchase you&apos;ve logged</p>
+          <h3 className="text-md font-semibold text-slate-900 dark:text-slate-100">
+            Purchase History
+            <InfoTooltip text="Every purchase you've logged" />
+          </h3>
         </div>
         <button
           type="button"

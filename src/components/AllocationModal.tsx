@@ -5,6 +5,7 @@ import { fmtQty } from '../lib/utils'
 import { type Meal } from '../lib/types'
 import { useAppData } from '../hooks/useAppData'
 import { ItemCombobox } from './ItemCombobox'
+import { InfoTooltip } from './InfoTooltip'
 import { UnitSelect } from './UnitSelect'
 import { btnPrimary, inputCls } from './ui'
 
@@ -152,6 +153,13 @@ export function AllocationModal({
             ) : (
               <div className="flex items-center gap-1.5">
                 <h3 className="min-w-0 truncate text-lg font-semibold text-slate-900 dark:text-slate-100">{meal.name}</h3>
+                <InfoTooltip
+                  text={
+                    meal.cooked
+                      ? 'Cooked — these groceries were consumed.'
+                      : 'Allocate groceries from your inventory, add what you still need to buy, or note other untracked ingredients.'
+                  }
+                />
                 <button
                   className="shrink-0 rounded px-1 py-0.5 text-sm text-slate-400 hover:bg-slate-100 hover:text-emerald-600 dark:hover:bg-slate-800 dark:hover:text-emerald-400"
                   onClick={() => {
@@ -164,11 +172,6 @@ export function AllocationModal({
                 </button>
               </div>
             )}
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {meal.cooked
-                ? 'Cooked — these groceries were consumed.'
-                : 'Allocate groceries from your inventory, add what you still need to buy, or note other untracked ingredients.'}
-            </p>
           </div>
           <button
             className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
@@ -179,14 +182,12 @@ export function AllocationModal({
         </div>
 
         <section className="mt-5">
+          <div className="flex items-center">
           <h4 className="text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400">
             To-Buy List
           </h4>
-          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-            Groceries to buy for this meal — buy them in Groceries to stock your
-            inventory. A meal can only be cooked once its to-buy list is fully
-            bought.
-          </p>
+          <InfoTooltip text="Groceries to buy for this meal — buy them in Groceries to stock your inventory. A meal can only be cooked once its to-buy list is fully bought." />
+          </div>
           <ul className="mt-2 space-y-2">
             {mealWishlist.length === 0 && (
               <li className="rounded-lg border border-dashed border-slate-200 px-3 py-3 text-center text-sm text-slate-400 dark:border-slate-700 dark:text-slate-500">
@@ -260,12 +261,12 @@ export function AllocationModal({
         </section>
 
         <section className="mt-5">
+          <div className="flex items-center">
           <h4 className="text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
             From inventory
           </h4>
-          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-            Groceries already in stock, reserved for this meal.
-          </p>
+          <InfoTooltip text="Groceries already in stock, reserved for this meal." />
+          </div>
           <ul className="mt-2 space-y-2">
             {mealAllocations.length === 0 && (
               <li className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-center text-sm text-slate-400 dark:border-slate-700 dark:text-slate-500">
@@ -346,13 +347,12 @@ export function AllocationModal({
         </section>
 
         <section className="mt-5">
+          <div className="flex items-center">
           <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Other ingredients
           </h4>
-          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-            Free-text ingredients that aren&apos;t tracked in inventory or the
-            to-buy list. Cooking or deleting the meal never affects them.
-          </p>
+          <InfoTooltip text="Free-text ingredients that aren't tracked in inventory or the to-buy list. Cooking or deleting the meal never affects them." />
+          </div>
           <ul className="mt-2 space-y-2">
             {mealUntracked.length === 0 && (
               <li className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-center text-sm text-slate-400 dark:border-slate-700 dark:text-slate-500">

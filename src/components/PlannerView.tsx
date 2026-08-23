@@ -13,6 +13,7 @@ import { useAppData } from '../hooks/useAppData'
 import { MealCard } from './MealCard'
 import { AllocationModal } from './AllocationModal'
 import { ExpiryBadge } from './ExpiryBadge'
+import { InfoTooltip } from './InfoTooltip'
 import { TodayView } from './TodayView'
 import { inputCls } from './ui'
 
@@ -78,11 +79,10 @@ export function PlannerView() {
     <div className="flex flex-col gap-6 lg:flex-row">
       <section className="min-w-0 flex-1">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Meal planner</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Plan the week. Click a meal to allocate groceries; when it&apos;s
-            cooked, they&apos;re consumed from inventory.
-          </p>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            Meal planner
+            <InfoTooltip text="Plan the week. Click a meal to allocate groceries; when it's cooked, they're consumed from inventory." />
+          </h2>
         </div>
 
         <TodayView meals={todayMeals} allocations={allocations} wishlist={wishlist} untracked={untracked} />
@@ -285,10 +285,10 @@ function LeftoverSidebar({ rows }: { rows: InventoryRow[] }) {
   return (
     <aside className="w-full shrink-0 lg:w-72">
       <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Leftovers</h3>
-        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-          Unallocated stock, soonest expiry first
-        </p>
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          Leftovers
+          <InfoTooltip text="Unallocated stock, soonest expiry first" />
+        </h3>
         <ul className="mt-3 space-y-2">
           {rows.length === 0 && (
             <li className="text-sm text-slate-400 dark:text-slate-500">

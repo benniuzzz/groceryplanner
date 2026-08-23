@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import * as api from '../lib/api'
 import { useAppData } from '../hooks/useAppData'
 import { btnDanger, btnPrimary, btnSecondary, inputCls } from './ui'
+import { InfoTooltip } from './InfoTooltip'
 import { UnitSelect } from './UnitSelect'
 
 export function SettingsView() {
@@ -90,11 +91,10 @@ export function SettingsView() {
   return (
     <div className="space-y-10">
       <section>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Item names</h2>
-        <p className="mt-1 max-w-prose text-sm text-slate-500 dark:text-slate-400">
-          Only items listed here can be logged in Groceries; each one&apos;s unit is
-          applied automatically.
-        </p>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+          Item names
+          <InfoTooltip text="Only items listed here can be logged in Groceries; each one's unit is applied automatically." />
+        </h2>
 
         <div className="mt-4 flex flex-wrap items-end gap-2">
           <label className="flex flex-1 min-w-[200px] flex-col gap-1">
@@ -148,12 +148,10 @@ export function SettingsView() {
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Quantity units</h2>
-        <p className="mt-1 max-w-prose text-sm text-slate-500 dark:text-slate-400">
-          These appear in the unit dropdown wherever you log or allocate
-          groceries. A unit that is in use on inventory or meals cannot be
-          renamed or deleted.
-        </p>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+          Quantity units
+          <InfoTooltip text="These appear in the unit dropdown wherever you log or allocate groceries. A unit that is in use on inventory or meals cannot be renamed or deleted." />
+        </h2>
 
         <div className="mt-4 flex flex-wrap items-end gap-2">
           <label className="flex flex-1 min-w-[200px] flex-col gap-1">

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import * as api from '../lib/api'
 import { useAppData } from '../hooks/useAppData'
 import { ItemCombobox } from './ItemCombobox'
+import { InfoTooltip } from './InfoTooltip'
 import { btnPrimary, inputCls } from './ui'
 
 export function AddToListModal({
@@ -52,10 +53,8 @@ export function AddToListModal({
           <div>
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               Add to To-Buy List
+              <InfoTooltip text="Anything you want on hand — not tied to a planned meal." />
             </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Anything you want on hand — not tied to a planned meal.
-            </p>
           </div>
           <button
             className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"

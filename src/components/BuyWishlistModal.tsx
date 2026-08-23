@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { AllowedItem } from '../lib/types'
 import { fmtQty } from '../lib/utils'
 import { btnPrimary, btnSecondary, inputCls } from './ui'
+import { InfoTooltip } from './InfoTooltip'
 
 export function BuyWishlistModal({
   item,
@@ -45,11 +46,8 @@ export function BuyWishlistModal({
           <div>
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               Bought {item.name}?
+              <InfoTooltip text={`${fmtQty(total)} ${unit} on your meals' to-buy lists — buying adds it to inventory.`} />
             </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {fmtQty(total)} {unit} on your meals&apos; to-buy lists — buying
-              adds it to inventory.
-            </p>
           </div>
           <button
             className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
