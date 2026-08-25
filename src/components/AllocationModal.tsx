@@ -31,6 +31,9 @@ export function AllocationModal({
   const [unError, setUnError] = useState<string | null>(null)
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
+  const [showWishlistForm, setShowWishlistForm] = useState(false)
+  const [showAllocationForm, setShowAllocationForm] = useState(false)
+  const [showUntrackedForm, setShowUntrackedForm] = useState(false)
 
   useEffect(() => {
     if (!unUnit && units.length > 0) setUnUnit(units[0].name)
@@ -187,6 +190,20 @@ export function AllocationModal({
             To-Buy List
           </h4>
           <InfoTooltip text="Groceries to buy for this meal — buy them in Groceries to stock your inventory. A meal can only be cooked once its to-buy list is fully bought." />
+          {!meal.cooked && (
+            <button
+              type="button"
+              aria-label="Add to to-buy list"
+              title={showWishlistForm ? 'Hide form' : 'Add to to-buy list'}
+              onClick={() => setShowWishlistForm((v) => !v)}
+              className="ml-auto rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-emerald-600 dark:hover:bg-slate-800 dark:hover:text-emerald-400"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                <path d="M12 5v14" />
+                <path d="M5 12h14" />
+              </svg>
+            </button>
+          )}
           </div>
           <ul className="mt-2 space-y-2">
             {mealWishlist.length === 0 && (
@@ -217,7 +234,7 @@ export function AllocationModal({
               </li>
             ))}
           </ul>
-          {!meal.cooked && (
+          {!meal.cooked && showWishlistForm && (
             <div className="mt-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="min-w-[180px] flex-1">
@@ -266,6 +283,20 @@ export function AllocationModal({
             From inventory
           </h4>
           <InfoTooltip text="Groceries already in stock, reserved for this meal." />
+          {!meal.cooked && (
+            <button
+              type="button"
+              aria-label="Allocate from inventory"
+              title={showAllocationForm ? 'Hide form' : 'Allocate from inventory'}
+              onClick={() => setShowAllocationForm((v) => !v)}
+              className="ml-auto rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-emerald-600 dark:hover:bg-slate-800 dark:hover:text-emerald-400"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                <path d="M12 5v14" />
+                <path d="M5 12h14" />
+              </svg>
+            </button>
+          )}
           </div>
           <ul className="mt-2 space-y-2">
             {mealAllocations.length === 0 && (
@@ -296,7 +327,7 @@ export function AllocationModal({
               </li>
             ))}
           </ul>
-          {!meal.cooked && (
+          {!meal.cooked && showAllocationForm && (
             <div className="mt-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
               <div className="flex flex-wrap items-center gap-2">
                 <select
@@ -352,6 +383,20 @@ export function AllocationModal({
             Other ingredients
           </h4>
           <InfoTooltip text="Free-text ingredients that aren't tracked in inventory or the to-buy list. Cooking or deleting the meal never affects them." />
+          {!meal.cooked && (
+            <button
+              type="button"
+              aria-label="Add other ingredient"
+              title={showUntrackedForm ? 'Hide form' : 'Add other ingredient'}
+              onClick={() => setShowUntrackedForm((v) => !v)}
+              className="ml-auto rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-emerald-600 dark:hover:bg-slate-800 dark:hover:text-emerald-400"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                <path d="M12 5v14" />
+                <path d="M5 12h14" />
+              </svg>
+            </button>
+          )}
           </div>
           <ul className="mt-2 space-y-2">
             {mealUntracked.length === 0 && (
@@ -382,7 +427,7 @@ export function AllocationModal({
               </li>
             ))}
           </ul>
-          {!meal.cooked && (
+          {!meal.cooked && showUntrackedForm && (
             <div className="mt-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
               <div className="flex flex-wrap items-center gap-2">
                 <input
