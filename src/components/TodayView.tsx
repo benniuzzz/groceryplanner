@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { formatDateTime } from '../lib/dates'
-import { fmtQty } from '../lib/utils'
+import { fmtQty, mealDetailsLabel } from '../lib/utils'
 import {
   SLOTS,
   SLOT_LABELS,
@@ -165,6 +165,11 @@ export function TodayView({
                       </span>
                     )}
                   </div>
+                  {mealDetailsLabel(meal) && (
+                    <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                      {mealDetailsLabel(meal)}
+                    </div>
+                  )}
                   <ul className="mt-1 space-y-0.5">
                     {mealIngredients(allocations, wishlist, untracked, meal.id).map((ig) => (
                       <li key={ig.key} className="text-slate-600 dark:text-slate-300">
@@ -253,7 +258,8 @@ function buildTodayText(
       lines.push('  No meal planned')
     }
     for (const meal of slotMeals) {
-      lines.push(`  - ${meal.name}`)
+      const details = mealDetailsLabel(meal)
+      lines.push(details ? `  - ${meal.name} (${details})` : `  - ${meal.name}`)
       const ings = mealIngredients(allocations, wishlist, untracked, meal.id)
       if (ings.length === 0) {
         lines.push('      No ingredients allocated')

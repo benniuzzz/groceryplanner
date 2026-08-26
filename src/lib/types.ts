@@ -38,6 +38,8 @@ export interface Meal {
   name: string
   day: number
   slot: MealSlot
+  meal_time: string | null
+  people: number | null
   cooked: boolean
   created_at: string
 }

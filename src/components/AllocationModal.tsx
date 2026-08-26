@@ -6,6 +6,7 @@ import { type Meal } from '../lib/types'
 import { useAppData } from '../hooks/useAppData'
 import { ItemCombobox } from './ItemCombobox'
 import { InfoTooltip } from './InfoTooltip'
+import { TimePicker } from './TimePicker'
 import { UnitSelect } from './UnitSelect'
 import { btnPrimary, inputCls } from './ui'
 
@@ -31,6 +32,10 @@ export function AllocationModal({
   const [unError, setUnError] = useState<string | null>(null)
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
+  const [timeDraft, setTimeDraft] = useState(meal.meal_time ?? '')
+  const [peopleDraft, setPeopleDraft] = useState(
+    meal.people != null ? String(meal.people) : '',
+  )
   const [showWishlistForm, setShowWishlistForm] = useState(false)
   const [showAllocationForm, setShowAllocationForm] = useState(false)
   const [showUntrackedForm, setShowUntrackedForm] = useState(false)
@@ -131,6 +136,22 @@ export function AllocationModal({
     if (ok) setEditingName(false)
   }
 
+  const changeTime = (v: string | null) => {
+    setTimeDraft(v ?? '')
+    if (v === (meal.meal_time ?? null)) return
+    void run(() => api.updateMeal(meal.id, { mealTime: v ?? null }))
+  }
+
+  const savePeople = async () => {
+    const p = Number(peopleDraft)
+    const next =
+      peopleDraft.trim() !== '' && Number.isFinite(p) && p >= 1
+        ? Math.floor(p)
+        : null
+    if (next === meal.people) return
+    await run(() => api.updateMeal(meal.id, { people: next }))
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
@@ -182,6 +203,29 @@ export function AllocationModal({
           >
             &#x2715;
           </button>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+            <span>Time</span>
+            <TimePicker
+              value={timeDraft || null}
+              onChange={changeTime}
+            />
+          </div>
+          <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+            <span>People</span>
+            <input
+              type="number"
+              min={1}
+              placeholder="&mdash;"
+              aria-label="Number of people eating"
+              className={`${inputCls} w-16 px-1.5 py-1 text-xs`}
+              value={peopleDraft}
+              onChange={(e) => setPeopleDraft(e.target.value)}
+              onBlur={() => void savePeople()}
+            />
+          </label>
         </div>
 
         <section className="mt-5">

@@ -229,13 +229,27 @@ export async function createMeal(
   name: string,
   day: number,
   slot: MealSlot,
+  mealTime?: string | null,
+  people?: number | null,
 ): Promise<void> {
-  const { error } = await supabase.from('meals').insert({ name, day, slot })
+  const { error } = await supabase
+    .from('meals')
+    .insert({ name, day, slot, meal_time: mealTime ?? null, people: people ?? null })
   if (error) throw error
 }
 
-export async function updateMeal(id: string, name: string): Promise<void> {
-  const { error } = await supabase.from('meals').update({ name }).eq('id', id)
+export interface MealPatch {
+  name?: string
+  mealTime?: string | null
+  people?: number | null
+}
+
+export async function updateMeal(id: string, patch: MealPatch): Promise<void> {
+  const update: Record<string, string | number | null> = {}
+  if (patch.name !== undefined) update.name = patch.name
+  if (patch.mealTime !== undefined) update.meal_time = patch.mealTime
+  if (patch.people !== undefined) update.people = patch.people
+  const { error } = await supabase.from('meals').update(update).eq('id', id)
   if (error) throw error
 }
 

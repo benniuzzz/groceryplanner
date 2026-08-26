@@ -14,6 +14,7 @@ import { MealCard } from './MealCard'
 import { AllocationModal } from './AllocationModal'
 import { ExpiryBadge } from './ExpiryBadge'
 import { InfoTooltip } from './InfoTooltip'
+import { TimePicker } from './TimePicker'
 import { TodayView } from './TodayView'
 import { inputCls } from './ui'
 
@@ -25,6 +26,8 @@ export function PlannerView() {
     slot: MealSlot
   } | null>(null)
   const [newMealName, setNewMealName] = useState('')
+  const [newMealTime, setNewMealTime] = useState('')
+  const [newMealPeople, setNewMealPeople] = useState('')
 
   const today = (new Date().getDay() + 6) % 7
 
@@ -53,13 +56,28 @@ export function PlannerView() {
 
   const todayMeals = meals.filter((m) => m.day === today)
 
+  const clearNewMealFields = () => {
+    setNewMealName('')
+    setNewMealTime('')
+    setNewMealPeople('')
+  }
+
   const addMeal = async (day: number, slot: MealSlot) => {
     const name = newMealName.trim()
     if (!name) return
-    const ok = await run(() => api.createMeal(name, day, slot))
+    const people = Number(newMealPeople)
+    const ok = await run(() =>
+      api.createMeal(
+        name,
+        day,
+        slot,
+        newMealTime || null,
+        people >= 1 ? Math.floor(people) : null,
+      ),
+    )
     if (ok) {
       setAddingCell(null)
-      setNewMealName('')
+      clearNewMealFields()
     }
   }
 
@@ -209,7 +227,7 @@ export function PlannerView() {
                             }
                           }}
                           onRename={(name) =>
-                            run(() => api.updateMeal(meal.id, name))
+                            run(() => api.updateMeal(meal.id, { name }))
                           }
                         />
                       ))}
@@ -225,10 +243,31 @@ export function PlannerView() {
                               if (e.key === 'Enter') void addMeal(day, slot)
                               if (e.key === 'Escape') {
                                 setAddingCell(null)
-                                setNewMealName('')
+                                clearNewMealFields()
                               }
                             }}
                           />
+                          <div
+                            className="flex justify-center"
+                            title="Time of meal (optional)"
+                          >
+                            <TimePicker
+                              value={newMealTime || null}
+                              onChange={(v) => setNewMealTime(v ?? '')}
+                            />
+                          </div>
+                          <div>
+                            <input
+                              type="number"
+                              min={1}
+                              aria-label="Number of people eating (optional)"
+                              title="Number of people eating (optional)"
+                              placeholder="People"
+                              className={`${inputCls} w-full px-1.5 py-1 text-xs`}
+                              value={newMealPeople}
+                              onChange={(e) => setNewMealPeople(e.target.value)}
+                            />
+                          </div>
                           <div className="flex gap-1">
                             <button
                               className="flex-1 rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700"
@@ -240,7 +279,7 @@ export function PlannerView() {
                               className="flex-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
                               onClick={() => {
                                 setAddingCell(null)
-                                setNewMealName('')
+                                clearNewMealFields()
                               }}
                             >
                               Cancel
@@ -252,7 +291,7 @@ export function PlannerView() {
                           className="w-full rounded-md border border-dashed border-slate-300 py-1.5 text-sm text-slate-400 hover:border-emerald-400 hover:text-emerald-600 dark:border-slate-600 dark:text-slate-500 dark:hover:border-emerald-500 dark:hover:text-emerald-400"
                           onClick={() => {
                             setAddingCell({ day, slot })
-                            setNewMealName('')
+                            clearNewMealFields()
                           }}
                         >
                           + Add
@@ -273,7 +312,7 @@ export function PlannerView() {
       {selectedMeal && (
         <AllocationModal
           meal={selectedMeal}
-          onRename={(name) => run(() => api.updateMeal(selectedMeal.id, name))}
+          onRename={(name) => run(() => api.updateMeal(selectedMeal.id, { name }))}
           onClose={() => setSelectedMealId(null)}
         />
       )}

@@ -57,6 +57,13 @@ create table if not exists meals (
   created_at timestamptz not null default now()
 );
 
+-- Optional per-meal details: 'HH:MM' time of day and headcount, both nullable
+-- (null = user hasn't configured them).
+alter table meals add column if not exists meal_time text;
+alter table meals add column if not exists people integer;
+alter table meals drop constraint if exists meals_people_check;
+alter table meals add constraint meals_people_check check (people is null or people >= 1);
+
 create table if not exists allocations (
   id uuid primary key default gen_random_uuid(),
   meal_id uuid not null references meals(id) on delete cascade,

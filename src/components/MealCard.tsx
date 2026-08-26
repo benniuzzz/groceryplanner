@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Meal } from '../lib/types'
+import { mealDetailsLabel } from '../lib/utils'
 import { inputCls } from './ui'
 
 export function MealCard({
@@ -27,6 +28,7 @@ export function MealCard({
 }) {
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState('')
+  const details = mealDetailsLabel(meal)
 
   const startRename = () => {
     setEditName(meal.name)
@@ -81,6 +83,15 @@ export function MealCard({
           >
             &#x270E;
           </button>
+        </div>
+      )}
+      {details && (
+        <div
+          className={`mt-0.5 text-[11px] ${
+            meal.cooked ? '' : 'text-slate-400 dark:text-slate-500'
+          }`}
+        >
+          {details}
         </div>
       )}
       <div className="mt-1 flex items-center justify-between gap-1">
