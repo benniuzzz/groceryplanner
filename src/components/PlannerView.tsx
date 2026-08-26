@@ -14,7 +14,6 @@ import { MealCard } from './MealCard'
 import { AllocationModal } from './AllocationModal'
 import { ExpiryBadge } from './ExpiryBadge'
 import { InfoTooltip } from './InfoTooltip'
-import { TimePicker } from './TimePicker'
 import { TodayView } from './TodayView'
 import { inputCls } from './ui'
 
@@ -26,8 +25,6 @@ export function PlannerView() {
     slot: MealSlot
   } | null>(null)
   const [newMealName, setNewMealName] = useState('')
-  const [newMealTime, setNewMealTime] = useState('')
-  const [newMealPeople, setNewMealPeople] = useState('')
 
   const today = (new Date().getDay() + 6) % 7
 
@@ -58,23 +55,12 @@ export function PlannerView() {
 
   const clearNewMealFields = () => {
     setNewMealName('')
-    setNewMealTime('')
-    setNewMealPeople('')
   }
 
   const addMeal = async (day: number, slot: MealSlot) => {
     const name = newMealName.trim()
     if (!name) return
-    const people = Number(newMealPeople)
-    const ok = await run(() =>
-      api.createMeal(
-        name,
-        day,
-        slot,
-        newMealTime || null,
-        people >= 1 ? Math.floor(people) : null,
-      ),
-    )
+    const ok = await run(() => api.createMeal(name, day, slot))
     if (ok) {
       setAddingCell(null)
       clearNewMealFields()
@@ -247,27 +233,6 @@ export function PlannerView() {
                               }
                             }}
                           />
-                          <div
-                            className="flex justify-center"
-                            title="Time of meal (optional)"
-                          >
-                            <TimePicker
-                              value={newMealTime || null}
-                              onChange={(v) => setNewMealTime(v ?? '')}
-                            />
-                          </div>
-                          <div>
-                            <input
-                              type="number"
-                              min={1}
-                              aria-label="Number of people eating (optional)"
-                              title="Number of people eating (optional)"
-                              placeholder="People"
-                              className={`${inputCls} w-full px-1.5 py-1 text-xs`}
-                              value={newMealPeople}
-                              onChange={(e) => setNewMealPeople(e.target.value)}
-                            />
-                          </div>
                           <div className="flex gap-1">
                             <button
                               className="flex-1 rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700"
