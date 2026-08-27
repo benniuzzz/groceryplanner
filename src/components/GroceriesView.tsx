@@ -10,7 +10,7 @@ import { AddStockModal } from './AddStockModal'
 import { AddToListModal } from './AddToListModal'
 import { BuyWishlistModal } from './BuyWishlistModal'
 import { InfoTooltip } from './InfoTooltip'
-import { btnDanger, btnPrimary, inputCls } from './ui'
+import { btnDanger, btnPrimary, enterStagger, inputCls } from './ui'
 
 interface WishlistGroup {
   item: AllowedItem
@@ -119,7 +119,7 @@ export function GroceriesView({
 
   return (
     <div className="space-y-8">
-      <section>
+      <section className="animate-fade-up">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
           Groceries
           <InfoTooltip text="Your meals' to-buy list, current stock, and purchase history in one place — buying from the list lands straight in inventory." />
@@ -175,7 +175,7 @@ function ToBuyListSection({
     : null
 
   return (
-    <section>
+    <section className="animate-fade-up" style={{ animationDelay: '70ms' }}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-md font-semibold text-slate-900 dark:text-slate-100">
@@ -203,10 +203,11 @@ function ToBuyListSection({
         </p>
       ) : (
         <div className="mt-3 space-y-2">
-          {groups.map((group) => (
+          {groups.map((group, i) => (
             <div
               key={group.item.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/40 p-3 dark:border-amber-900 dark:bg-amber-950/30"
+              className="animate-fade-up flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/40 p-3 dark:border-amber-900 dark:bg-amber-950/30"
+              style={enterStagger(i, 40, 8)}
             >
               <div className="min-w-0 flex-1">
                 <span className="text-sm font-medium text-slate-800 dark:text-slate-100">
@@ -328,7 +329,7 @@ function InventorySection({
   }
 
   return (
-    <section>
+    <section className="animate-fade-up" style={{ animationDelay: '140ms' }}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-md font-semibold text-slate-900 dark:text-slate-100">
@@ -382,7 +383,10 @@ function InventorySection({
         </div>
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+      <div
+        className="animate-fade-in mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+        style={{ animationDelay: '180ms' }}
+      >
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
@@ -402,13 +406,14 @@ function InventorySection({
                 </td>
               </tr>
             )}
-            {visible.map((row) => {
+            {visible.map((row, i) => {
               const key = rowKey(row)
               const isOpen = expanded.has(key)
               return [
                 <tr
                   key={key}
-                  className="cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50"
+                  className="animate-fade-in cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50"
+                  style={enterStagger(4 + i, 25, 16)}
                   onClick={() => toggle(key)}
                 >
                   <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
@@ -554,7 +559,10 @@ function PurchaseHistorySection({
   }, [entries])
 
   return (
-    <section>
+    <section
+      className="animate-fade-up"
+      style={{ animationDelay: '200ms' }}
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-md font-semibold text-slate-900 dark:text-slate-100">
@@ -591,13 +599,17 @@ function PurchaseHistorySection({
             Nothing added yet.
           </p>
         )}
-        {groups.map(([day, list]) => {
+        {groups.map(([day, list], i) => {
           const subtotal = list.reduce(
             (sum, e) => sum + (e.cost ?? 0),
             0,
           )
           return (
-            <div key={day} className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+            <div
+              key={day}
+              className="animate-fade-up rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
+              style={enterStagger(5 + i, 45, 8)}
+            >
               <div className="flex items-baseline justify-between">
                 <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{day}</span>
                 <span className="text-xs text-slate-400 dark:text-slate-500">

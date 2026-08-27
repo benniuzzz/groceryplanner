@@ -15,7 +15,7 @@ import { AllocationModal } from './AllocationModal'
 import { ExpiryBadge } from './ExpiryBadge'
 import { InfoTooltip } from './InfoTooltip'
 import { TodayView } from './TodayView'
-import { inputCls } from './ui'
+import { inputCls, enterStagger } from './ui'
 
 export function PlannerView() {
   const { meals, allocations, entries, wishlist, untracked, run } = useAppData()
@@ -82,7 +82,7 @@ export function PlannerView() {
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
       <section className="min-w-0 flex-1">
-        <div>
+        <div className="animate-fade-up">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
             Meal planner
             <InfoTooltip text="Plan the week. Click a meal to allocate groceries; when it's cooked, they're consumed from inventory." />
@@ -153,11 +153,12 @@ export function PlannerView() {
             {DAYS.map((d, day) => (
               <div
                 key={d}
-                className={`flex flex-col items-center gap-1 rounded-lg py-1.5 text-sm font-semibold ${
+                className={`animate-fade-up flex flex-col items-center gap-1 rounded-lg py-1.5 text-sm font-semibold ${
                   day === today
                     ? 'bg-amber-400 text-amber-950 shadow-sm'
                     : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
                 }`}
+                style={enterStagger(day, 30, 6)}
               >
                 {d}
                 {day === today && (
@@ -168,9 +169,12 @@ export function PlannerView() {
               </div>
             ))}
 
-            {SLOTS.map((slot) => (
+            {SLOTS.map((slot, slotIdx) => (
               <Fragment key={slot}>
-                <div className="sticky left-0 z-10 flex items-center justify-center rounded-lg bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                <div
+                  className="animate-fade-in sticky left-0 z-10 flex items-center justify-center rounded-lg bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                  style={{ animationDelay: '130ms' }}
+                >
                   {SLOT_LABELS[slot]}
                 </div>
                 {DAYS.map((_, day) => {
@@ -182,11 +186,14 @@ export function PlannerView() {
                   return (
                     <div
                       key={`${slot}-${day}`}
-                      className={`min-h-[130px] space-y-1.5 rounded-lg border p-2 ${
+                      className={`animate-fade-in min-h-[130px] space-y-1.5 rounded-lg border p-2 ${
                         day === today
                           ? 'border-amber-300 bg-amber-50/70 ring-1 ring-amber-300 dark:border-amber-700 dark:bg-amber-950/40 dark:ring-amber-700'
                           : 'border-slate-200 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-800/50'
                       }`}
+                      style={{
+                        animationDelay: `${150 + (slotIdx + day) * 22}ms`,
+                      }}
                     >
                       {cellMeals.map((meal) => (
                         <MealCard
@@ -287,7 +294,10 @@ export function PlannerView() {
 
 function LeftoverSidebar({ rows }: { rows: InventoryRow[] }) {
   return (
-    <aside className="w-full shrink-0 lg:w-72">
+    <aside
+      className="animate-slide-in-right w-full shrink-0 lg:w-72"
+      style={{ animationDelay: '220ms' }}
+    >
       <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
         <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
           Leftovers
@@ -299,10 +309,11 @@ function LeftoverSidebar({ rows }: { rows: InventoryRow[] }) {
               Everything is allocated or the inventory is empty.
             </li>
           )}
-          {rows.map((r) => (
+          {rows.map((r, i) => (
             <li
               key={`${r.itemId}-${r.unit}`}
-              className="flex items-center justify-between gap-2 text-sm"
+              className="animate-fade-in flex items-center justify-between gap-2 text-sm"
+              style={enterStagger(i, 30, 8)}
             >
               <span className="min-w-0 truncate text-slate-700 dark:text-slate-200">
                 {r.name}

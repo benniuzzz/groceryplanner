@@ -19,6 +19,10 @@ export const comboOptionActive =
 export const btnDanger =
   'rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-900 dark:bg-slate-900 dark:text-red-400 dark:hover:bg-red-950'
 
+export const enterStagger = (index: number, step = 40, cap = 10) => ({
+  animationDelay: `${Math.min(index, cap) * step}ms`,
+})
+
 export const navItemBase =
   'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors'
 

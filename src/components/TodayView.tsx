@@ -76,7 +76,10 @@ export function TodayView({
   }
 
   return (
-    <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+    <div
+      className="animate-fade-up mt-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"
+      style={{ animationDelay: '60ms' }}
+    >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="h-4 w-1 rounded-full bg-emerald-600" />
@@ -126,10 +129,11 @@ export function TodayView({
       </div>
 
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {SLOTS.map((slot) => (
+        {SLOTS.map((slot, i) => (
           <div
             key={slot}
-            className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-800/50"
+            className="animate-fade-up rounded-lg border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-800/50"
+            style={{ animationDelay: `${120 + i * 60}ms` }}
           >
             <div
               className={`inline-block rounded-full px-2 py-0.5 text-xs font-bold uppercase tracking-wide ${SLOT_ACCENTS[slot].pill}`}

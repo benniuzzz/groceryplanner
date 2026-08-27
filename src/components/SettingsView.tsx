@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import * as api from '../lib/api'
 import { useAppData } from '../hooks/useAppData'
-import { btnDanger, btnPrimary, btnSecondary, inputCls } from './ui'
+import { btnDanger, btnPrimary, btnSecondary, enterStagger, inputCls } from './ui'
 import { InfoTooltip } from './InfoTooltip'
 import { UnitSelect } from './UnitSelect'
 
@@ -90,7 +90,7 @@ export function SettingsView() {
 
   return (
     <div className="space-y-10">
-      <section>
+      <section className="animate-fade-up">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
           Item names
           <InfoTooltip text="Only items listed here can be logged in Groceries; each one's unit is applied automatically." />
@@ -134,10 +134,11 @@ export function SettingsView() {
             </p>
           ) : (
             <ul className="space-y-2">
-              {allowedItems.map((item) => (
+              {allowedItems.map((item, i) => (
                 <AllowedItemRow
                   key={item.id}
                   item={item}
+                  index={i}
                   onSave={save}
                   onRemove={remove}
                 />
@@ -147,7 +148,10 @@ export function SettingsView() {
         </div>
       </section>
 
-      <section>
+      <section
+          className="animate-fade-up"
+          style={{ animationDelay: '100ms' }}
+        >
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
           Quantity units
           <InfoTooltip text="These appear in the unit dropdown wherever you log or allocate groceries. A unit that is in use on inventory or meals cannot be renamed or deleted." />
@@ -185,10 +189,11 @@ export function SettingsView() {
             </p>
           ) : (
             <ul className="space-y-2">
-              {units.map((unit) => (
+              {units.map((unit, i) => (
                 <UnitRow
                   key={unit.id}
                   unit={unit}
+                  index={i}
                   onSave={saveUnit}
                   onRemove={removeUnit}
                 />
@@ -203,10 +208,12 @@ export function SettingsView() {
 
 function AllowedItemRow({
   item,
+  index,
   onSave,
   onRemove,
 }: {
   item: { id: string; name: string; unit: string }
+  index: number
   onSave: (id: string, name: string, unit: string) => void
   onRemove: (id: string, name: string) => void
 }) {
@@ -215,7 +222,10 @@ function AllowedItemRow({
   const dirty = name.trim() !== item.name || unit !== item.unit
 
   return (
-    <li className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+    <li
+      className="animate-fade-up flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
+      style={enterStagger(1 + index, 40, 10)}
+    >
       <input
         className={`${inputCls} min-w-[180px] flex-1`}
         value={name}
@@ -246,10 +256,12 @@ function AllowedItemRow({
 
 function UnitRow({
   unit,
+  index,
   onSave,
   onRemove,
 }: {
   unit: { id: string; name: string }
+  index: number
   onSave: (id: string, name: string) => void
   onRemove: (id: string, name: string) => void
 }) {
@@ -257,7 +269,10 @@ function UnitRow({
   const dirty = name.trim() !== unit.name
 
   return (
-    <li className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+    <li
+      className="animate-fade-up flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
+      style={enterStagger(1 + index, 40, 10)}
+    >
       <input
         className={`${inputCls} min-w-[180px] flex-1`}
         value={name}
