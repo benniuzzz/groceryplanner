@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { AllowedItem } from '../lib/types'
 import { fmtQty } from '../lib/utils'
 import { btnPrimary, btnSecondary, inputCls } from './ui'
@@ -33,7 +34,7 @@ export function BuyWishlistModal({
     else onClose()
   }
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
       onClick={onClose}
@@ -114,6 +115,7 @@ export function BuyWishlistModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

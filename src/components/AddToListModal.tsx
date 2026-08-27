@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import * as api from '../lib/api'
 import { useAppData } from '../hooks/useAppData'
 import { ItemCombobox } from './ItemCombobox'
@@ -40,7 +41,7 @@ export function AddToListModal({
     }
   }
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
       onClick={onClose}
@@ -122,6 +123,7 @@ export function AddToListModal({
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

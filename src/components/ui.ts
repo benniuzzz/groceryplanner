@@ -19,6 +19,9 @@ export const comboOptionActive =
 export const btnDanger =
   'rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-900 dark:bg-slate-900 dark:text-red-400 dark:hover:bg-red-950'
 
+export const btnIconDanger =
+  'rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-400'
+
 export const enterStagger = (index: number, step = 40, cap = 10) => ({
   animationDelay: `${Math.min(index, cap) * step}ms`,
 })

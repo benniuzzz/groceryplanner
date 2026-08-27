@@ -10,7 +10,7 @@ import { AddStockModal } from './AddStockModal'
 import { AddToListModal } from './AddToListModal'
 import { BuyWishlistModal } from './BuyWishlistModal'
 import { InfoTooltip } from './InfoTooltip'
-import { btnDanger, btnPrimary, enterStagger, inputCls } from './ui'
+import { btnIconDanger, btnPrimary, enterStagger, inputCls } from './ui'
 
 interface WishlistGroup {
   item: AllowedItem
@@ -230,7 +230,7 @@ function ToBuyListSection({
                 {group.rows.some((r) => r.mealId === null) && (
                   <button
                     type="button"
-                    className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-400"
+                    className={btnIconDanger}
                     title="Remove from list"
                     onClick={() => {
                       const generalQty = group.rows
@@ -351,7 +351,7 @@ function InventorySection({
           </button>
           <button
             type="button"
-            className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-400"
+            className={btnIconDanger}
             title="Clear all inventory"
             onClick={() => {
               if (
@@ -483,7 +483,10 @@ function InventorySection({
                                 }}
                               />
                               <button
-                                className={btnDanger}
+                                type="button"
+                                className={btnIconDanger}
+                                title="Remove quantity"
+                                aria-label="Remove quantity"
                                 onClick={(ev) => {
                                   ev.stopPropagation()
                                   const q = Number(removeQty[e.id] ?? e.quantity)
@@ -510,7 +513,13 @@ function InventorySection({
                                   if (ok) void run(() => api.removeStock(e.id, q))
                                 }}
                               >
-                                Remove
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                                  <path d="M3 6h18" />
+                                  <path d="M19 6l-1.5 14.1A2 2 0 0 1 15.5 22h-7a2 2 0 0 1-2-1.9L5 6" />
+                                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                  <path d="M10 11v6" />
+                                  <path d="M14 11v6" />
+                                </svg>
                               </button>
                             </span>
                             {removeErr[e.id] && (
@@ -572,7 +581,7 @@ function PurchaseHistorySection({
         </div>
         <button
           type="button"
-          className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-400"
+          className={btnIconDanger}
           title="Clear all purchase history"
           onClick={() => {
             if (

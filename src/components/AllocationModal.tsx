@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import * as api from '../lib/api'
 import { computeInventory, rowKey, sortByExpiryThenName } from '../lib/inventory'
 import { fmtQty } from '../lib/utils'
@@ -8,7 +9,7 @@ import { ItemCombobox } from './ItemCombobox'
 import { InfoTooltip } from './InfoTooltip'
 import { TimePicker } from './TimePicker'
 import { UnitSelect } from './UnitSelect'
-import { btnPrimary, inputCls } from './ui'
+import { btnIconDanger, btnPrimary, inputCls } from './ui'
 
 export function AllocationModal({
   meal,
@@ -152,7 +153,7 @@ export function AllocationModal({
     await run(() => api.updateMeal(meal.id, { people: next }))
   }
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
       onClick={onClose}
@@ -269,10 +270,19 @@ export function AllocationModal({
                 </span>
                 {!meal.cooked && (
                   <button
-                    className="text-xs text-slate-400 hover:text-red-600 dark:hover:text-red-400"
+                    type="button"
+                    className={btnIconDanger}
+                    title={`Remove ${w.allowed_items?.name ?? 'item'} from to-buy list`}
+                    aria-label={`Remove ${w.allowed_items?.name ?? 'item'} from to-buy list`}
                     onClick={() => void run(() => api.deleteWishlistAllocation(w.id))}
                   >
-                    Remove
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                      <path d="M3 6h18" />
+                      <path d="M19 6l-1.5 14.1A2 2 0 0 1 15.5 22h-7a2 2 0 0 1-2-1.9L5 6" />
+                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <path d="M10 11v6" />
+                      <path d="M14 11v6" />
+                    </svg>
                   </button>
                 )}
               </li>
@@ -362,10 +372,19 @@ export function AllocationModal({
                 </span>
                 {!meal.cooked && (
                   <button
-                    className="text-xs text-slate-400 hover:text-red-600 dark:hover:text-red-400"
+                    type="button"
+                    className={btnIconDanger}
+                    title={`Remove ${a.items?.name ?? 'item'} from inventory`}
+                    aria-label={`Remove ${a.items?.name ?? 'item'} from inventory`}
                     onClick={() => void run(() => api.deleteAllocation(a.id))}
                   >
-                    Remove
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                      <path d="M3 6h18" />
+                      <path d="M19 6l-1.5 14.1A2 2 0 0 1 15.5 22h-7a2 2 0 0 1-2-1.9L5 6" />
+                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <path d="M10 11v6" />
+                      <path d="M14 11v6" />
+                    </svg>
                   </button>
                 )}
               </li>
@@ -462,10 +481,19 @@ export function AllocationModal({
                 </span>
                 {!meal.cooked && (
                   <button
-                    className="text-xs text-slate-400 hover:text-red-600 dark:hover:text-red-400"
+                    type="button"
+                    className={btnIconDanger}
+                    title={`Remove ${u.name} from other ingredients`}
+                    aria-label={`Remove ${u.name} from other ingredients`}
                     onClick={() => void run(() => api.deleteUntrackedIngredient(u.id))}
                   >
-                    Remove
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                      <path d="M3 6h18" />
+                      <path d="M19 6l-1.5 14.1A2 2 0 0 1 15.5 22h-7a2 2 0 0 1-2-1.9L5 6" />
+                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <path d="M10 11v6" />
+                      <path d="M14 11v6" />
+                    </svg>
                   </button>
                 )}
               </li>
@@ -522,6 +550,7 @@ export function AllocationModal({
           )}
         </section>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
