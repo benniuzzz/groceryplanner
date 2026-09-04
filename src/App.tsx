@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { isSupabaseConfigured } from './lib/supabase'
+import { ensureDeviceSubscription } from './lib/push'
 import { AppDataProvider } from './hooks/AppDataProvider'
 import { useAppData } from './hooks/useAppData'
 import { useTheme } from './hooks/useTheme'
@@ -18,8 +19,18 @@ export default function App() {
   )
 }
 
+function initialTab(): Tab {
+  try {
+    const tab = new URLSearchParams(window.location.search).get('tab')
+    if (tab === 'planner' || tab === 'settings') return tab
+  } catch {
+    // ignore unparseable URLs
+  }
+  return 'groceries'
+}
+
 function Shell() {
-  const [tab, setTab] = useState<Tab>('groceries')
+  const [tab, setTab] = useState<Tab>(initialTab)
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem('sidebar-collapsed') === '1'
@@ -30,6 +41,13 @@ function Shell() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
   const { loading, error } = useAppData()
+
+  useEffect(() => {
+    if (window.location.search) {
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+    void ensureDeviceSubscription()
+  }, [])
 
   const toggleCollapse = () => {
     setCollapsed((current) => {

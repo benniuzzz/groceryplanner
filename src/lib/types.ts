@@ -72,6 +72,13 @@ export interface MealUntracked {
   created_at: string
 }
 
+export interface PushSettings {
+  enabled: boolean
+  time: string
+  timezone: string
+  last_sent_on: string | null
+}
+
 export interface InventoryRow {
   itemId: string
   name: string

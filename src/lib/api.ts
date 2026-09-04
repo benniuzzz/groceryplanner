@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase, supabaseKey, supabaseUrl } from './supabase'
 import type {
   AllowedItem,
   Allocation,
@@ -7,6 +7,7 @@ import type {
   MealSlot,
   MealUntracked,
   MealWishlist,
+  PushSettings,
   StockEntry,
   Unit,
 } from './types'
@@ -365,4 +366,72 @@ export async function purchaseWishlist(
     p_cost: cost,
   })
   if (error) throw error
+}
+
+export async function fetchPushSettings(): Promise<PushSettings> {
+  const { data, error } = await supabase
+    .from('push_settings')
+    .select('enabled, time, timezone, last_sent_on')
+    .eq('id', true)
+    .single()
+  if (error) throw error
+  return data as PushSettings
+}
+
+export async function savePushSettings(
+  settings: Pick<PushSettings, 'enabled' | 'time' | 'timezone'>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('push_settings')
+    .update(settings)
+    .eq('id', true)
+  if (error) throw error
+}
+
+export async function upsertPushSubscription(sub: {
+  endpoint: string
+  p256dh: string
+  auth: string
+  user_agent: string
+}): Promise<void> {
+  const { error } = await supabase.from('push_subscriptions').upsert(sub, {
+    onConflict: 'endpoint',
+  })
+  if (error) throw error
+}
+
+export async function deletePushSubscription(endpoint: string): Promise<void> {
+  const { error } = await supabase
+    .from('push_subscriptions')
+    .delete()
+    .eq('endpoint', endpoint)
+  if (error) throw error
+}
+
+export async function countPushSubscriptions(): Promise<number> {
+  const { count, error } = await supabase
+    .from('push_subscriptions')
+    .select('endpoint', { count: 'exact', head: true })
+  if (error) throw error
+  return count ?? 0
+}
+
+export async function sendTestPush(): Promise<{ sent: number }> {
+  const res = await fetch(`${supabaseUrl}/functions/v1/send-meal-push`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      apikey: supabaseKey,
+      authorization: `Bearer ${supabaseKey}`,
+    },
+    body: JSON.stringify({ force: true }),
+  })
+  const json = (await res.json().catch(() => ({}))) as {
+    sent?: number
+    error?: string
+  }
+  if (!res.ok || json.error) {
+    throw new Error(json.error ?? `Push function failed (HTTP ${res.status})`)
+  }
+  return { sent: json.sent ?? 0 }
 }

@@ -128,6 +128,30 @@ create table if not exists meal_untracked (
   unique (meal_id, name, unit)
 );
 
+-- Web-push registrations for the daily meal-plan notification. One row per
+-- browser device; endpoint is the push service URL and doubles as the PK.
+create table if not exists push_subscriptions (
+  endpoint text primary key,
+  p256dh text not null,
+  auth text not null,
+  user_agent text,
+  created_at timestamptz not null default now()
+);
+
+-- Singleton row (id is always true) holding the global daily-notification
+-- schedule for the household. 'time' is 'HH:MM' local wall-clock in
+-- 'timezone'; last_sent_on guards against double sends per local day and is
+-- claimed atomically by claim_daily_push().
+create table if not exists push_settings (
+  id boolean primary key default true check (id),
+  enabled boolean not null default false,
+  time text not null default '07:30' check (time ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'),
+  timezone text not null default 'UTC',
+  last_sent_on date
+);
+
+insert into push_settings (id) values (true) on conflict (id) do nothing;
+
 -- Curated list of quantity units shown in dropdowns wherever a unit is
 -- chosen (item forms, untracked ingredients). Unit columns elsewhere are
 -- free text with no FK, so this list only populates dropdowns. Renaming or
@@ -167,6 +191,8 @@ alter table meal_wishlist enable row level security;
 alter table meal_untracked enable row level security;
 alter table meal_consumption enable row level security;
 alter table units enable row level security;
+alter table push_subscriptions enable row level security;
+alter table push_settings enable row level security;
 
 drop policy if exists items_all on items;
 drop policy if exists allowed_items_all on allowed_items;
@@ -177,6 +203,8 @@ drop policy if exists meal_wishlist_all on meal_wishlist;
 drop policy if exists meal_untracked_all on meal_untracked;
 drop policy if exists meal_consumption_all on meal_consumption;
 drop policy if exists units_all on units;
+drop policy if exists push_subscriptions_all on push_subscriptions;
+drop policy if exists push_settings_all on push_settings;
 
 create policy items_all on items for all to anon, authenticated using (true) with check (true);
 create policy allowed_items_all on allowed_items for all to anon, authenticated using (true) with check (true);
@@ -187,6 +215,8 @@ create policy meal_wishlist_all on meal_wishlist for all to anon, authenticated 
 create policy meal_untracked_all on meal_untracked for all to anon, authenticated using (true) with check (true);
 create policy meal_consumption_all on meal_consumption for all to anon, authenticated using (true) with check (true);
 create policy units_all on units for all to anon, authenticated using (true) with check (true);
+create policy push_subscriptions_all on push_subscriptions for all to anon, authenticated using (true) with check (true);
+create policy push_settings_all on push_settings for all to anon, authenticated using (true) with check (true);
 
 -- Returns the item id for a name, creating the item if it does not exist yet.
 create or replace function get_or_create_item(p_name text)
@@ -498,3 +528,115 @@ grant execute on function clear_purchase_history() to anon, authenticated;
 grant execute on function remove_stock(uuid, double precision) to anon, authenticated;
 grant execute on function purchase_wishlist(uuid[], double precision[], date, numeric) to anon, authenticated;
 grant execute on function unit_in_use(text) to anon, authenticated;
+
+-- Gatekeeper for the daily meal-plan push, called by the send-meal-push Edge
+-- Function. Computes "now" in the configured timezone and decides whether a
+-- send is due: enabled, local wall-clock time >= the configured time, and not
+-- already sent for the local date. On success it atomically claims the day
+-- (the UPDATE doubles as the race guard, so overlapping cron invocations can
+-- never double-send) and returns { send: true, date, meals } where meals is
+-- every meal scheduled for that weekday (Monday=0 index, matching the app's
+-- planner) with slot/name/meal_time/people for notification rendering.
+-- p_force bypasses all due-checks (used by the Settings "Send test" button)
+-- and does NOT consume the day's claim.
+create or replace function claim_daily_meal_plan(p_force boolean default false)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  s record;
+  v_local timestamp;
+  v_day integer;
+  v_meals jsonb;
+begin
+  select * into s from push_settings where id = true;
+  if not found then
+    return jsonb_build_object('send', false, 'reason', 'no-settings');
+  end if;
+
+  if not s.enabled and not coalesce(p_force, false) then
+    return jsonb_build_object('send', false, 'reason', 'disabled');
+  end if;
+
+  v_local := now() at time zone s.timezone;
+
+  if not coalesce(p_force, false) then
+    if to_char(v_local, 'HH24:MI') < s.time then
+      return jsonb_build_object('send', false, 'reason', 'not-due');
+    end if;
+    if s.last_sent_on is not distinct from v_local::date then
+      return jsonb_build_object('send', false, 'reason', 'already-sent');
+    end if;
+    update push_settings set last_sent_on = v_local::date
+    where id = true and (last_sent_on is distinct from v_local::date);
+    if not found then
+      return jsonb_build_object('send', false, 'reason', 'already-sent');
+    end if;
+  end if;
+
+  -- isodow: Mon=1 .. Sun=7 → app's day index: Mon=0 .. Sun=6.
+  v_day := (extract(isodow from v_local)::int + 6) % 7;
+
+  select jsonb_agg(
+           jsonb_build_object(
+             'name', m.name,
+             'slot', m.slot,
+             'meal_time', m.meal_time,
+             'people', m.people
+           )
+           order by o.ord, m.created_at
+         )
+  into v_meals
+  from meals m
+  join (values ('breakfast', 0), ('lunch', 1), ('dinner', 2)) as o(slot, ord)
+    on o.slot = m.slot
+  where m.day = v_day;
+
+  return jsonb_build_object(
+    'send', true,
+    'date', to_char(v_local::date, 'YYYY-MM-DD'),
+    'weekday', trim(to_char(v_local, 'Day')),
+    'meals', coalesce(v_meals, '[]'::jsonb)
+  );
+end;
+$$;
+
+grant execute on function claim_daily_meal_plan(boolean) to anon, authenticated;
+
+-- ── Daily push trigger (pg_cron + pg_net) ──────────────────────────────────
+-- pg_cron cannot be created from the SQL editor on Supabase: enable it first
+-- under Dashboard → Database → Extensions, then run this file. pg_net can be
+-- created here. The job wakes the send-meal-push Edge Function every 15
+-- minutes; claim_daily_meal_plan() decides (in the configured timezone) when
+-- a notification is actually due, so cron's UTC schedule is irrelevant.
+--
+-- Setup:
+--   1. Deploy the Edge Function (supabase functions deploy send-meal-push)
+--      and set its secrets: the two VAPID keys + PUSH_ALLOWED_KEY (set it to
+--      your publishable key, the same value you paste into the header below).
+--   2. Replace <YOUR-PUBLISHABLE-KEY> with your publishable key and run this.
+-- The job is stored in the postgres database (pg_cron's only home); it can
+-- still reach the Edge Function over HTTP.
+create extension if not exists pg_net;
+
+select cron.unschedule(jobid)
+from cron.job
+where jobname = 'daily-meal-push';
+
+select cron.schedule(
+  'daily-meal-push',
+  '*/15 * * * *',
+  $$
+  select net.http_post(
+    url := 'https://bmrvunvwvdiirnjokkmg.supabase.co/functions/v1/send-meal-push',
+    headers := jsonb_build_object(
+      'content-type', 'application/json',
+      'authorization', 'Bearer <YOUR-PUBLISHABLE-KEY>'
+    ),
+    body := '{}'::jsonb,
+    timeout_millis := 10000
+  );
+  $$
+);

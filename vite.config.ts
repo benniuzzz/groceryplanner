@@ -12,6 +12,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'script-defer',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       includeAssets: ['favicon.ico', 'favicon.svg', 'icons.svg', '*.png'],
       manifest: {
         id: '/groceryplanner/',
