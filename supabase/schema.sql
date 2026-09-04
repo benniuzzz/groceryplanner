@@ -633,7 +633,7 @@ select cron.schedule(
     url := 'https://bmrvunvwvdiirnjokkmg.supabase.co/functions/v1/send-meal-push',
     headers := jsonb_build_object(
       'content-type', 'application/json',
-      'authorization', 'Bearer <YOUR-PUBLISHABLE-KEY>'
+      'authorization', 'Bearer sb_publishable_jIf_K4QGThRcNyU5x4ncTQ_jefuhX_f'
     ),
     body := '{}'::jsonb,
     timeout_millis := 10000
