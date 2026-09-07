@@ -64,6 +64,13 @@ alter table meals add column if not exists people integer;
 alter table meals drop constraint if exists meals_people_check;
 alter table meals add constraint meals_people_check check (people is null or people >= 1);
 
+-- More optional per-meal details, all nullable: a recipe URL, a photo of the
+-- recipe (object path inside the public 'meal-photos' storage bucket, see the
+-- storage section below), and arbitrary remarks.
+alter table meals add column if not exists recipe_url text;
+alter table meals add column if not exists photo_path text;
+alter table meals add column if not exists remarks text;
+
 create table if not exists allocations (
   id uuid primary key default gen_random_uuid(),
   meal_id uuid not null references meals(id) on delete cascade,
@@ -217,6 +224,19 @@ create policy meal_consumption_all on meal_consumption for all to anon, authenti
 create policy units_all on units for all to anon, authenticated using (true) with check (true);
 create policy push_subscriptions_all on push_subscriptions for all to anon, authenticated using (true) with check (true);
 create policy push_settings_all on push_settings for all to anon, authenticated using (true) with check (true);
+
+-- Public bucket for recipe photos (meals.photo_path stores the object path).
+-- Policies are permissive for anon + authenticated, mirroring the table
+-- policies above: one shared household dataset, no per-user auth.
+insert into storage.buckets (id, name, public)
+values ('meal-photos', 'meal-photos', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists meal_photos_all on storage.objects;
+create policy meal_photos_all on storage.objects
+  for all to anon, authenticated
+  using (bucket_id = 'meal-photos')
+  with check (bucket_id = 'meal-photos');
 
 -- Returns the item id for a name, creating the item if it does not exist yet.
 create or replace function get_or_create_item(p_name text)
@@ -536,7 +556,8 @@ grant execute on function unit_in_use(text) to anon, authenticated;
 -- (the UPDATE doubles as the race guard, so overlapping cron invocations can
 -- never double-send) and returns { send: true, date, meals } where meals is
 -- every meal scheduled for that weekday (Monday=0 index, matching the app's
--- planner) with slot/name/meal_time/people for notification rendering.
+-- planner) with slot/name/meal_time/people/recipe_url/remarks for
+-- notification rendering.
 -- p_force bypasses all due-checks (used by the Settings "Send test" button)
 -- and does NOT consume the day's claim.
 create or replace function claim_daily_meal_plan(p_force boolean default false)
@@ -584,7 +605,9 @@ begin
              'name', m.name,
              'slot', m.slot,
              'meal_time', m.meal_time,
-             'people', m.people
+             'people', m.people,
+             'recipe_url', m.recipe_url,
+             'remarks', m.remarks
            )
            order by o.ord, m.created_at
          )

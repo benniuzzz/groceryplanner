@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { mealPhotoUrl } from '../lib/api'
 import { formatDateTime } from '../lib/dates'
 import { fmtQty, mealDetailsLabel } from '../lib/utils'
 import {
@@ -174,6 +175,36 @@ export function TodayView({
                       {mealDetailsLabel(meal)}
                     </div>
                   )}
+                  {meal.photo_path && (
+                    <a
+                      href={mealPhotoUrl(meal.photo_path)}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="Open recipe photo"
+                      className="mt-1 block"
+                    >
+                      <img
+                        src={mealPhotoUrl(meal.photo_path)}
+                        alt={`Recipe photo for ${meal.name}`}
+                        className="h-24 w-full rounded-md border border-slate-200 object-cover dark:border-slate-700"
+                      />
+                    </a>
+                  )}
+                  {meal.recipe_url && (
+                    <a
+                      href={meal.recipe_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 block truncate text-xs font-medium text-emerald-600 hover:underline dark:text-emerald-400"
+                    >
+                      Recipe &#x2197;
+                    </a>
+                  )}
+                  {meal.remarks && (
+                    <p className="mt-1 text-xs italic text-slate-500 dark:text-slate-400">
+                      {meal.remarks}
+                    </p>
+                  )}
                   <ul className="mt-1 space-y-0.5">
                     {mealIngredients(allocations, wishlist, untracked, meal.id).map((ig) => (
                       <li key={ig.key} className="text-slate-600 dark:text-slate-300">
@@ -264,6 +295,12 @@ function buildTodayText(
     for (const meal of slotMeals) {
       const details = mealDetailsLabel(meal)
       lines.push(details ? `  - ${meal.name} (${details})` : `  - ${meal.name}`)
+      if (meal.recipe_url) {
+        lines.push(`      Recipe: ${meal.recipe_url}`)
+      }
+      if (meal.remarks) {
+        lines.push(`      Notes: ${meal.remarks}`)
+      }
       const ings = mealIngredients(allocations, wishlist, untracked, meal.id)
       if (ings.length === 0) {
         lines.push('      No ingredients allocated')

@@ -18,6 +18,8 @@ interface PlanMeal {
   slot: 'breakfast' | 'lunch' | 'dinner'
   meal_time: string | null
   people: number | null
+  recipe_url: string | null
+  remarks: string | null
 }
 
 interface ClaimResult {
@@ -71,6 +73,13 @@ function buildBody(date: string, meals: PlanMeal[]): { title: string; body: stri
       const details = detailsLabel(meal)
       const suffix = details ? ` (${details})` : ''
       lines.push(`${SLOT_LABELS[slot]}: ${meal.name}${suffix}`)
+      if (meal.recipe_url) {
+        lines.push(`  Recipe: ${meal.recipe_url}`)
+      }
+      if (meal.remarks) {
+        const note = meal.remarks.replace(/\s+/g, ' ').trim()
+        lines.push(`  Notes: ${note.length > 80 ? `${note.slice(0, 79)}\u2026` : note}`)
+      }
     }
   }
 

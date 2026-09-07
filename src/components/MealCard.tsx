@@ -85,13 +85,47 @@ export function MealCard({
           </button>
         </div>
       )}
-      {details && (
+      {(details || meal.recipe_url || meal.photo_path || meal.remarks) && (
         <div
-          className={`mt-0.5 text-[11px] ${
+          className={`mt-0.5 flex items-center gap-1.5 text-[11px] ${
             meal.cooked ? '' : 'text-slate-400 dark:text-slate-500'
           }`}
         >
-          {details}
+          {details && <span className="truncate">{details}</span>}
+          {meal.recipe_url && (
+            <a
+              href={meal.recipe_url}
+              target="_blank"
+              rel="noreferrer"
+              title="Open recipe link"
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0 hover:text-emerald-600 dark:hover:text-emerald-400"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden="true">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+            </a>
+          )}
+          {meal.photo_path && (
+            <span title="Has recipe photo" className="shrink-0">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <path d="M21 15l-5-5L5 21" />
+              </svg>
+            </span>
+          )}
+          {meal.remarks && (
+            <span title={meal.remarks} className="shrink-0">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden="true">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6" />
+                <path d="M16 13H8" />
+                <path d="M16 17H8" />
+              </svg>
+            </span>
+          )}
         </div>
       )}
       <div className="mt-1 flex items-center justify-between gap-1">

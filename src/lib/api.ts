@@ -1,3 +1,4 @@
+import { compressImage } from './image'
 import { supabase, supabaseKey, supabaseUrl } from './supabase'
 import type {
   AllowedItem,
@@ -243,6 +244,9 @@ export interface MealPatch {
   name?: string
   mealTime?: string | null
   people?: number | null
+  recipeUrl?: string | null
+  photoPath?: string | null
+  remarks?: string | null
 }
 
 export async function updateMeal(id: string, patch: MealPatch): Promise<void> {
@@ -250,8 +254,38 @@ export async function updateMeal(id: string, patch: MealPatch): Promise<void> {
   if (patch.name !== undefined) update.name = patch.name
   if (patch.mealTime !== undefined) update.meal_time = patch.mealTime
   if (patch.people !== undefined) update.people = patch.people
+  if (patch.recipeUrl !== undefined) update.recipe_url = patch.recipeUrl
+  if (patch.photoPath !== undefined) update.photo_path = patch.photoPath
+  if (patch.remarks !== undefined) update.remarks = patch.remarks
   const { error } = await supabase.from('meals').update(update).eq('id', id)
   if (error) throw error
+}
+
+const PHOTO_BUCKET = 'meal-photos'
+
+// Compresses the picked/captured image client-side, uploads it to the public
+// meal-photos bucket under the meal's id, and returns the object path to save
+// on meals.photo_path.
+export async function uploadMealPhoto(
+  mealId: string,
+  file: File,
+): Promise<string> {
+  const blob = await compressImage(file)
+  const path = `${mealId}/${Date.now()}.jpg`
+  const { error } = await supabase.storage
+    .from(PHOTO_BUCKET)
+    .upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+  if (error) throw error
+  return path
+}
+
+export async function deleteMealPhoto(path: string): Promise<void> {
+  const { error } = await supabase.storage.from(PHOTO_BUCKET).remove([path])
+  if (error) throw error
+}
+
+export function mealPhotoUrl(path: string): string {
+  return supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl
 }
 
 export async function deleteMeal(id: string): Promise<void> {

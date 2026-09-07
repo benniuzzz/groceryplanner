@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import * as api from '../lib/api'
 import { computeInventory, rowKey, sortByExpiryThenName } from '../lib/inventory'
@@ -9,7 +9,7 @@ import { ItemCombobox } from './ItemCombobox'
 import { InfoTooltip } from './InfoTooltip'
 import { TimePicker } from './TimePicker'
 import { UnitSelect } from './UnitSelect'
-import { btnIconDanger, btnPrimary, inputCls } from './ui'
+import { btnIconDanger, btnPrimary, btnSecondary, inputCls } from './ui'
 
 export function AllocationModal({
   meal,
@@ -37,6 +37,11 @@ export function AllocationModal({
   const [peopleDraft, setPeopleDraft] = useState(
     meal.people != null ? String(meal.people) : '',
   )
+  const [urlDraft, setUrlDraft] = useState(meal.recipe_url ?? '')
+  const [remarksDraft, setRemarksDraft] = useState(meal.remarks ?? '')
+  const [uploading, setUploading] = useState(false)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [showWishlistForm, setShowWishlistForm] = useState(false)
   const [showAllocationForm, setShowAllocationForm] = useState(false)
   const [showUntrackedForm, setShowUntrackedForm] = useState(false)
@@ -153,6 +158,44 @@ export function AllocationModal({
     await run(() => api.updateMeal(meal.id, { people: next }))
   }
 
+  const saveRecipeUrl = async () => {
+    const next = urlDraft.trim() !== '' ? urlDraft.trim() : null
+    if (next === (meal.recipe_url ?? null)) return
+    await run(() => api.updateMeal(meal.id, { recipeUrl: next }))
+  }
+
+  const saveRemarks = async () => {
+    const next = remarksDraft.trim() !== '' ? remarksDraft.trim() : null
+    if (next === (meal.remarks ?? null)) return
+    await run(() => api.updateMeal(meal.id, { remarks: next }))
+  }
+
+  const handlePhotoFile = async (file: File | undefined) => {
+    if (!file || uploading) return
+    setUploading(true)
+    try {
+      const path = await api.uploadMealPhoto(meal.id, file)
+      const oldPath = meal.photo_path
+      await run(async () => {
+        await api.updateMeal(meal.id, { photoPath: path })
+        if (oldPath && oldPath !== path) await api.deleteMealPhoto(oldPath)
+      })
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Photo upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const removePhoto = async () => {
+    const path = meal.photo_path
+    if (!path) return
+    await run(async () => {
+      await api.updateMeal(meal.id, { photoPath: null })
+      await api.deleteMealPhoto(path)
+    })
+  }
+
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
@@ -228,6 +271,134 @@ export function AllocationModal({
             />
           </label>
         </div>
+
+        <section className="mt-5">
+          <div className="flex items-center">
+            <h4 className="text-xs font-bold uppercase tracking-wide text-sky-700 dark:text-sky-400">
+              Recipe
+            </h4>
+            <InfoTooltip text="Optional extras for this meal: a link to the recipe, a photo of it (camera or upload), and free-form remarks." />
+          </div>
+          <div className="mt-2 space-y-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              <span>Recipe link</span>
+              <div className="mt-1 flex items-center gap-2">
+                <input
+                  type="url"
+                  inputMode="url"
+                  placeholder="https://…"
+                  aria-label="Recipe URL"
+                  className={`${inputCls} min-w-0 flex-1 px-2 py-1.5 text-sm`}
+                  value={urlDraft}
+                  onChange={(e) => setUrlDraft(e.target.value)}
+                  onBlur={() => void saveRecipeUrl()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                  }}
+                />
+                {meal.recipe_url && (
+                  <a
+                    href={meal.recipe_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 text-sm font-medium text-emerald-600 hover:underline dark:text-emerald-400"
+                  >
+                    Open &#x2197;
+                  </a>
+                )}
+              </div>
+            </div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              <span>Photo</span>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                {meal.photo_path && (
+                  <a
+                    href={api.mealPhotoUrl(meal.photo_path)}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Open full size"
+                  >
+                    <img
+                      src={api.mealPhotoUrl(meal.photo_path)}
+                      alt={`Recipe photo for ${meal.name}`}
+                      className="h-16 w-16 rounded-lg border border-slate-200 object-cover dark:border-slate-700"
+                    />
+                  </a>
+                )}
+                <button
+                  type="button"
+                  className={`${btnPrimary} px-3 py-1.5 text-xs`}
+                  disabled={uploading}
+                  onClick={() => cameraInputRef.current?.click()}
+                >
+                  Take photo
+                </button>
+                <button
+                  type="button"
+                  className={`${btnSecondary} px-3 py-1.5 text-xs`}
+                  disabled={uploading}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Upload
+                </button>
+                {meal.photo_path && (
+                  <button
+                    type="button"
+                    className={btnIconDanger}
+                    disabled={uploading}
+                    title="Remove photo"
+                    aria-label="Remove photo"
+                    onClick={() => void removePhoto()}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                      <path d="M3 6h18" />
+                      <path d="M19 6l-1.5 14.1A2 2 0 0 1 15.5 22h-7a2 2 0 0 1-2-1.9L5 6" />
+                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <path d="M10 11v6" />
+                      <path d="M14 11v6" />
+                    </svg>
+                  </button>
+                )}
+                {uploading && (
+                  <span className="text-sm text-slate-400 dark:text-slate-500">Uploading…</span>
+                )}
+              </div>
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  void handlePhotoFile(e.target.files?.[0])
+                  e.target.value = ''
+                }}
+              />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  void handlePhotoFile(e.target.files?.[0])
+                  e.target.value = ''
+                }}
+              />
+            </div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              <span>Remarks</span>
+              <textarea
+                rows={2}
+                placeholder="Anything worth remembering about this meal…"
+                aria-label="Remarks"
+                className={`${inputCls} mt-1 w-full resize-y px-2 py-1.5 text-sm`}
+                value={remarksDraft}
+                onChange={(e) => setRemarksDraft(e.target.value)}
+                onBlur={() => void saveRemarks()}
+              />
+            </div>
+          </div>
+        </section>
 
         <section className="mt-5">
           <div className="flex items-center">

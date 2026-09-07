@@ -40,6 +40,9 @@ export interface Meal {
   slot: MealSlot
   meal_time: string | null
   people: number | null
+  recipe_url: string | null
+  photo_path: string | null
+  remarks: string | null
   cooked: boolean
   created_at: string
 }
