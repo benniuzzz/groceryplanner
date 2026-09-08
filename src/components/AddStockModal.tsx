@@ -134,7 +134,7 @@ export function AddStockModal({
                 </label>
                 <label className="flex flex-col gap-1">
                   <span className="text-xs font-medium text-slate-500">
-                    Cost <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+                    Cost <span className="font-normal text-slate-400 dark:text-slate-500">(S$, optional)</span>
                   </span>
                   <input
                     className={`${inputCls} w-full`}

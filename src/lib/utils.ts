@@ -6,13 +6,13 @@ export function fmtQty(n: number): string {
   return String(round2(n))
 }
 
-const costFormatter = new Intl.NumberFormat(undefined, {
-  style: 'currency',
-  currency: 'USD',
+const costFormatter = new Intl.NumberFormat('en-SG', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 })
 
 export function fmtCost(n: number): string {
-  return costFormatter.format(n)
+  return `S$${costFormatter.format(n)}`
 }
 
 export function formatTime12(hhmm: string): string {
