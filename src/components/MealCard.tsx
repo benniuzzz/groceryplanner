@@ -22,17 +22,32 @@ export function MealCard({
   canCook: boolean
   selected: boolean
   onSelect: () => void
-  onToggleCook: () => void
+  onToggleCook: () => Promise<boolean>
   onDelete: () => void
   onRename: (name: string) => Promise<boolean>
 }) {
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState('')
+  const [toggling, setToggling] = useState(false)
   const details = mealDetailsLabel(meal)
 
   const startRename = () => {
     setEditName(meal.name)
     setEditing(true)
+  }
+
+  // cook_meal is now idempotent in the database, but without this guard a
+  // double-click still fires a pointless second round trip and a full refresh
+  // while the first one is in flight.
+  const toggleCook = async () => {
+    if (toggling) return
+    if (!meal.cooked && !canCook) return
+    setToggling(true)
+    try {
+      await onToggleCook()
+    } finally {
+      setToggling(false)
+    }
   }
 
   const submitRename = async () => {
@@ -157,10 +172,9 @@ export function MealCard({
             }
             onClick={(e) => {
               e.stopPropagation()
-              if (!meal.cooked && !canCook) return
-              onToggleCook()
+              void toggleCook()
             }}
-            disabled={!canCook && !meal.cooked}
+            disabled={toggling || (!canCook && !meal.cooked)}
             title={
               meal.cooked
                 ? 'Uncook and restore stock'

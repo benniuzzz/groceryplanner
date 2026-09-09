@@ -3,7 +3,7 @@ import * as api from '../lib/api'
 import * as push from '../lib/push'
 import { useAppData } from '../hooks/useAppData'
 import type { PushSettings } from '../lib/types'
-import { btnPrimary, enterStagger } from './ui'
+import { btnDanger, btnPrimary, enterStagger } from './ui'
 import { InfoTooltip } from './InfoTooltip'
 import { TimePicker } from './TimePicker'
 
@@ -109,6 +109,42 @@ export function DailyNotificationSection() {
       setNotice(sent > 0 ? `Test sent to ${sent} device${sent === 1 ? '' : 's'}.` : 'No registered devices received the test — enable the toggle first.')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Test notification failed.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Wipes every stored endpoint, not just this browser's. Devices that were
+  // uninstalled, re-installed, or had their push endpoint rotated away leave
+  // rows behind that nothing else ever removes while notifications are off,
+  // because then no send happens to discover they are dead.
+  const resetDevices = async () => {
+    if (!settings || busy) return
+    if (
+      !confirm(
+        'Unregister every device? Pushes stop everywhere until each device turns the toggle back on.',
+      )
+    )
+      return
+    setBusy(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const ok = await run(async () => {
+        await push.unsubscribeThisDevice()
+        await api.deleteAllPushSubscriptions()
+        await api.savePushSettings({
+          enabled: false,
+          time: settings.time,
+          timezone: settings.timezone,
+        })
+      })
+      if (ok) {
+        setNotice('All devices unregistered and the daily notification switched off.')
+        await reload()
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not unregister devices.')
     } finally {
       setBusy(false)
     }
@@ -220,6 +256,15 @@ export function DailyNotificationSection() {
             <span className="text-xs text-slate-500 dark:text-slate-400">
               {deviceCount} registered device{deviceCount === 1 ? '' : 's'}
             </span>
+          )}
+          {(deviceCount ?? 0) > 0 && (
+            <button
+              className={btnDanger}
+              disabled={busy}
+              onClick={() => void resetDevices()}
+            >
+              Unregister all devices
+            </button>
           )}
         </div>
 

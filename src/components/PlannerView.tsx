@@ -216,7 +216,7 @@ export function PlannerView() {
                           selected={meal.id === selectedMealId}
                           onSelect={() => setSelectedMealId(meal.id)}
                           onToggleCook={() =>
-                            void run(() =>
+                            run(() =>
                               meal.cooked
                                 ? api.markUncooked(meal.id)
                                 : api.markCooked(meal.id),

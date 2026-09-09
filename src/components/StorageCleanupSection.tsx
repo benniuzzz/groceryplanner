@@ -12,7 +12,7 @@ export function StorageCleanupSection() {
     if (busy) return
     if (
       !confirm(
-        'Delete meal photos that no longer belong to a meal? This frees up cloud storage and cannot be undone.',
+        'Delete meal photos no longer attached to a meal? This frees up cloud storage and cannot be undone.',
       )
     )
       return
@@ -37,14 +37,14 @@ export function StorageCleanupSection() {
     <section className="animate-fade-up" style={{ animationDelay: '300ms' }}>
       <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
         Meal photo storage
-        <InfoTooltip text="Recipe photos live in Supabase Storage and count towards your storage quota. Deleting a meal now deletes its photo too; this sweeps up any photo left behind by an older version of the app or an interrupted delete." />
+        <InfoTooltip text="Recipe photos live in Supabase Storage and count towards your storage quota. This keeps the one photo each meal currently uses and deletes everything else in the bucket — leftovers from deleted meals and from uploads that were replaced or interrupted." />
       </h2>
 
       <div className="mt-4 space-y-4" style={enterStagger(1, 40, 10)}>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Photos whose meal no longer exists are invisible in the app but still
-          take up space. Removing them is safe: photos of existing meals are
-          never touched.
+          Replacing or abandoning a photo can leave the old file in the cloud
+          where nothing points at it any more. Removing those is safe: the photo
+          a meal still displays is never touched.
         </p>
 
         <div className="flex flex-wrap items-center gap-3">

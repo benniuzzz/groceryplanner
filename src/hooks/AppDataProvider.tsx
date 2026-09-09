@@ -3,7 +3,6 @@ import * as api from '../lib/api'
 import type {
   AllowedItem,
   Allocation,
-  Item,
   Meal,
   MealUntracked,
   MealWishlist,
@@ -15,7 +14,6 @@ import { DataContext } from './DataContext'
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const [allowedItems, setAllowedItems] = useState<AllowedItem[]>([])
-  const [items, setItems] = useState<Item[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [entries, setEntries] = useState<StockEntry[]>([])
   const [purchases, setPurchases] = useState<Purchase[]>([])
@@ -30,7 +28,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     try {
       const [
         allowedData,
-        itemsData,
         unitsData,
         entriesData,
         purchasesData,
@@ -40,7 +37,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         untrackedData,
       ] = await Promise.all([
         api.fetchAllowedItems(),
-        api.fetchItems(),
         api.fetchUnits(),
         api.fetchStockEntries(),
         api.fetchPurchases(),
@@ -50,7 +46,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         api.fetchMealUntracked(),
       ])
       setAllowedItems(allowedData)
-      setItems(itemsData)
       setUnits(unitsData)
       setEntries(entriesData)
       setPurchases(purchasesData)
@@ -86,7 +81,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   return (
     <DataContext.Provider
-        value={{ allowedItems, items, units, entries, purchases, meals, allocations, wishlist, untracked, loading, error, refresh, run }}
+        value={{ allowedItems, units, entries, purchases, meals, allocations, wishlist, untracked, loading, error, refresh, run }}
     >
       {children}
     </DataContext.Provider>

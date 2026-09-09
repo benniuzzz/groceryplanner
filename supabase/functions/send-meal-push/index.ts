@@ -166,6 +166,7 @@ Deno.serve(async (req: Request) => {
   const { title, body } = buildBody(claim.date ?? '', claim.meals ?? [])
   let sent = 0
   const expired: string[] = []
+  const alive: string[] = []
 
   await Promise.all(
     (subs ?? []).map(async (sub) => {
@@ -175,6 +176,7 @@ Deno.serve(async (req: Request) => {
           JSON.stringify({ title, body }),
         )
         sent += 1
+        alive.push(sub.endpoint)
       } catch (err) {
         const status = (err as { statusCode?: number }).statusCode
         if (status === 404 || status === 410) expired.push(sub.endpoint)
@@ -182,6 +184,16 @@ Deno.serve(async (req: Request) => {
       }
     }),
   )
+
+  // A device that receives pushes but rarely opens the app still looks fresh
+  // to run_maintenance(), which would otherwise reap it after its quiet period.
+  if (alive.length > 0) {
+    const { error: touchError } = await supabase
+      .from('push_subscriptions')
+      .update({ last_seen_at: new Date().toISOString() })
+      .in('endpoint', alive)
+    if (touchError) console.error('failed to touch subscriptions', touchError.message)
+  }
 
   if (expired.length > 0) {
     await supabase.from('push_subscriptions').delete().in('endpoint', expired)

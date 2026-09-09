@@ -5,12 +5,6 @@ export interface AllowedItem {
   created_at: string
 }
 
-export interface Item {
-  id: string
-  name: string
-  created_at: string
-}
-
 export interface Unit {
   id: string
   name: string

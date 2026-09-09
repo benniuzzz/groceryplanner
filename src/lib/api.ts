@@ -3,7 +3,6 @@ import { supabase, supabaseKey, supabaseUrl } from './supabase'
 import type {
   AllowedItem,
   Allocation,
-  Item,
   Meal,
   MealSlot,
   MealUntracked,
@@ -60,15 +59,6 @@ export async function updateAllowedItem(
 export async function removeAllowedItem(id: string): Promise<void> {
   const { error } = await supabase.from('allowed_items').delete().eq('id', id)
   if (error) throw error
-}
-
-export async function fetchItems(): Promise<Item[]> {
-  const { data, error } = await supabase
-    .from('items')
-    .select('*')
-    .order('name')
-  if (error) throw error
-  return data as Item[]
 }
 
 export async function fetchUnits(): Promise<Unit[]> {
@@ -328,12 +318,23 @@ async function removePhotoPaths(paths: string[]): Promise<number> {
   return paths.length
 }
 
+// Deletes every object in the bucket except the photo each meal currently
+// points at. Two cases matter: folders belonging to deleted meals (nothing
+// references them), and superseded uploads inside the folder of a LIVE meal —
+// an interrupted or failed photo replace leaves the previous file behind, and
+// because uploads are timestamped they never overwrite each other, so those
+// orphans would otherwise pile up invisibly forever.
 export async function cleanupOrphanedMealPhotos(): Promise<number> {
   const { data: mealRows, error: mealError } = await supabase
     .from('meals')
-    .select('id')
+    .select('id, photo_path')
   if (mealError) throw mealError
-  const liveMealIds = new Set((mealRows as { id: string }[]).map((m) => m.id))
+  const referenced = new Map(
+    (mealRows as { id: string; photo_path: string | null }[]).map((m) => [
+      m.id,
+      m.photo_path,
+    ]),
+  )
 
   const root = await listPhotoEntries('')
   const strayFiles = root.filter((e) => e.id !== null).map((e) => e.name)
@@ -341,10 +342,13 @@ export async function cleanupOrphanedMealPhotos(): Promise<number> {
 
   let removed = await removePhotoPaths(strayFiles)
   for (const folder of folders) {
-    if (liveMealIds.has(folder)) continue
+    const keep = referenced.get(folder) ?? null
     const inside = await listPhotoEntries(folder)
     removed += await removePhotoPaths(
-      inside.filter((e) => e.id !== null).map((e) => `${folder}/${e.name}`),
+      inside
+        .filter((e) => e.id !== null)
+        .map((e) => `${folder}/${e.name}`)
+        .filter((p) => p !== keep),
     )
   }
   return removed
@@ -500,9 +504,14 @@ export async function upsertPushSubscription(sub: {
   auth: string
   user_agent: string
 }): Promise<void> {
-  const { error } = await supabase.from('push_subscriptions').upsert(sub, {
-    onConflict: 'endpoint',
-  })
+  // last_seen_at is refreshed on every (re-)register — push services rotate
+  // endpoint URLs, so this is what lets run_maintenance() tell a device that
+  // still opens the app apart from one whose endpoint was abandoned.
+  const { error } = await supabase
+    .from('push_subscriptions')
+    .upsert({ ...sub, last_seen_at: new Date().toISOString() }, {
+      onConflict: 'endpoint',
+    })
   if (error) throw error
 }
 
@@ -512,6 +521,19 @@ export async function deletePushSubscription(endpoint: string): Promise<void> {
     .delete()
     .eq('endpoint', endpoint)
   if (error) throw error
+}
+
+// Forgets every device, not just this one. Needed because a household that
+// re-installs browsers or stops using the app has no way to clear the rows the
+// old endpoints left behind.
+export async function deleteAllPushSubscriptions(): Promise<number> {
+  const { data, error } = await supabase
+    .from('push_subscriptions')
+    .delete()
+    .not('endpoint', 'is', null)
+    .select('endpoint')
+  if (error) throw error
+  return (data as { endpoint: string }[]).length
 }
 
 export async function countPushSubscriptions(): Promise<number> {

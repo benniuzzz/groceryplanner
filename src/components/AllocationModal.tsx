@@ -11,6 +11,17 @@ import { TimePicker } from './TimePicker'
 import { UnitSelect } from './UnitSelect'
 import { btnIconDanger, btnPrimary, btnSecondary, inputCls } from './ui'
 
+// Deleting a photo only ever reclaims space, so a failed delete must not undo
+// or contradict a database write that already succeeded. Anything left behind
+// is picked up by Settings → "Clean up orphaned photos".
+async function removePhotoQuietly(path: string): Promise<void> {
+  try {
+    await api.deleteMealPhoto(path)
+  } catch {
+    // best-effort; the sweep is the backstop
+  }
+}
+
 export function AllocationModal({
   meal,
   onRename,
@@ -176,10 +187,16 @@ export function AllocationModal({
     try {
       const path = await api.uploadMealPhoto(meal.id, file)
       const oldPath = meal.photo_path
-      await run(async () => {
-        await api.updateMeal(meal.id, { photoPath: path })
-        if (oldPath && oldPath !== path) await api.deleteMealPhoto(oldPath)
-      })
+      // Commit the path to the row first: while the meal points at the new
+      // photo, losing the old one to a failed delete is only a storage
+      // orphan, whereas losing the new one would break the meal.
+      const saved = await run(() => api.updateMeal(meal.id, { photoPath: path }))
+      if (!saved) {
+        // Nothing references this upload, so it is unreachable already.
+        await removePhotoQuietly(path)
+        return
+      }
+      if (oldPath && oldPath !== path) await removePhotoQuietly(oldPath)
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Photo upload failed')
     } finally {

@@ -40,7 +40,10 @@ alter table stock_entries drop constraint if exists stock_entries_cost_check;
 alter table stock_entries add constraint stock_entries_cost_check check (cost >= 0);
 
 -- Soft-delete columns: cooking a meal or manually removing stock sets one of
--- these instead of deleting the row, so purchase history is preserved.
+-- these instead of deleting the row, so uncook_meal can revive the exact batch
+-- and meal_consumption keeps a live stock_entry_id to point at. No screen ever
+-- reads these rows (fetchStockEntries filters both out) — purchases is the
+-- history log — so run_maintenance() hard-deletes them once they are old.
 alter table stock_entries add column if not exists consumed_at timestamptz;
 alter table stock_entries add column if not exists deleted_at timestamptz;
 alter table stock_entries add column if not exists deleted_why text;
@@ -162,6 +165,12 @@ create table if not exists push_subscriptions (
   created_at timestamptz not null default now()
 );
 
+-- Bumped every time the client re-registers the endpoint (app load) and every
+-- time a push is delivered to it. run_maintenance() reaps rows that have gone
+-- quiet, which is how endpoints rotated away by the push service get cleaned
+-- up even when no send is currently due.
+alter table push_subscriptions add column if not exists last_seen_at timestamptz not null default now();
+
 -- Singleton row (id is always true) holding the global daily-notification
 -- schedule for the household. 'time' is 'HH:MM' local wall-clock in
 -- 'timezone'; last_sent_on guards against double sends per local day and is
@@ -279,7 +288,9 @@ $$;
 -- Marks a meal as cooked and deducts its allocated amounts from stock,
 -- consuming entries that expire soonest first. Each deduction is logged to
 -- meal_consumption so it can be exactly restored by uncook_meal. Consumed
--- stock entries are kept (soft-deleted via consumed_at) to preserve history.
+-- entries are soft-deleted rather than dropped so uncook can revive them;
+-- run_maintenance() purges them once they are old enough to be irrelevant.
+-- Calling this on an already-cooked meal is a no-op.
 create or replace function cook_meal(p_meal_id uuid)
 returns void
 language plpgsql
@@ -299,6 +310,14 @@ begin
   end if;
 
   update meals set cooked = true where id = p_meal_id and cooked = false;
+
+  -- Already cooked: running the deduction loop again would consume stock a
+  -- second time and log duplicate meal_consumption rows, which uncook_meal
+  -- would then hand back doubled. Under READ COMMITTED a racing double-call
+  -- blocks on this row's lock, then matches zero rows and returns here.
+  if not found then
+    return;
+  end if;
 
   for a in
     select item_id, unit, quantity
@@ -332,10 +351,12 @@ end;
 $$;
 
 -- Marks a meal as uncooked and restores the exact stock entries that
--- cook_meal consumed. Entries that still exist (possibly partially consumed)
--- are revived by adding back the consumed quantity keyed on stock_entry_id;
--- entries hard-deleted before soft-deletes existed are re-inserted from the
--- snapshotted attributes in meal_consumption.
+-- cook_meal consumed. Entries that still exist (possibly partially consumed,
+-- possibly soft-deleted) are revived by adding back the consumed quantity
+-- keyed on stock_entry_id; entries already hard-deleted — by run_maintenance()
+-- or, before soft-deletes existed, by anything else — are re-inserted from the
+-- snapshotted attributes in meal_consumption. So the purge window only changes
+-- whether the original row is reused, never how much stock comes back.
 create or replace function uncook_meal(p_meal_id uuid)
 returns void
 language plpgsql
@@ -362,9 +383,15 @@ begin
       insert into stock_entries (item_id, unit, quantity, expiry_date, cost, added_at)
       values (c.item_id, c.unit, c.quantity, c.expiry_date, c.cost, c.added_at);
     else
+      -- Revive on both axes. A batch can be partly consumed by this meal and
+      -- then manually removed (remove_stock only soft-deletes what was left),
+      -- in which case leaving deleted_at set would restore the quantity into a
+      -- row every fetch filters out — silently losing those units.
       update stock_entries
       set quantity = quantity + c.quantity,
-          consumed_at = null
+          consumed_at = null,
+          deleted_at = null,
+          deleted_why = null
       where id = c.stock_entry_id;
     end if;
   end loop;
@@ -401,9 +428,90 @@ $$;
 -- log lives in its own table.
 drop function if exists clear_purchase_history();
 
+-- Nightly upkeep, called by the 'grocery-maintenance' pg_cron job at the bottom
+-- of this file. Reclaims the rows that normal use leaves behind but that no
+-- screen ever reads again. Returns a per-table count for the cron log.
+create or replace function run_maintenance(
+  p_stock_age interval default interval '30 days',
+  p_sub_age interval default interval '60 days'
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_stock integer;
+  v_subs integer;
+  v_items integer;
+  v_cron integer;
+begin
+  -- Soft-deleted stock batches. The client filters them out of every fetch and
+  -- the purchases table is the real history log, so they are pure dead weight.
+  -- Safe to hard-delete: meal_consumption.stock_entry_id is 'on delete set
+  -- null', and uncook_meal re-inserts a batch from its snapshotted attributes
+  -- when the original row is gone. The age window just keeps the nicer
+  -- behaviour (reviving the same row) for recently cooked meals.
+  with gone as (
+    delete from stock_entries
+    where (consumed_at is not null or deleted_at is not null)
+      and coalesce(consumed_at, deleted_at) < now() - p_stock_age
+    returning 1
+  )
+  select count(*) into v_stock from gone;
+
+  -- Push endpoints that stopped checking in. Push services rotate endpoint
+  -- URLs, so an app load re-inserts a fresh row and leaves the old one; the
+  -- send path only reaps endpoints it actually gets 404/410 for, which never
+  -- happens while notifications are switched off.
+  with gone as (
+    delete from push_subscriptions
+    where last_seen_at < now() - p_sub_age
+    returning 1
+  )
+  select count(*) into v_subs from gone;
+
+  -- Item names nothing points at any more. Must run after the stock purge
+  -- above, or soft-deleted batches keep stale items alive. meal_consumption
+  -- has no FK on item_id, so it has to be checked by hand: pruning an item it
+  -- still references would leave uncook_meal inserting a dangling item_id.
+  --
+  -- addGroceries() creates the item and inserts its stock rows in separate
+  -- round trips, so pruning can theoretically slip in between and make its
+  -- insert fail on the FK. purchase_wishlist() is transactional and immune. A
+  -- lost insert just means the user retries and get_or_create_item() makes a
+  -- fresh row, so this is left as a once-a-night edge case on purpose.
+  with gone as (
+    delete from items i
+    where not exists (select 1 from stock_entries s where s.item_id = i.id)
+      and not exists (select 1 from allocations a where a.item_id = i.id)
+      and not exists (select 1 from meal_consumption m where m.item_id = i.id)
+    returning 1
+  )
+  select count(*) into v_items from gone;
+
+  -- pg_cron writes one row per run; at a 15-minute schedule that is ~35k rows
+  -- a year, each carrying the request and response payload.
+  delete from cron.job_run_details where end_time < now() - interval '7 days';
+  get diagnostics v_cron = row_count;
+
+  return jsonb_build_object(
+    'stock_entries', v_stock,
+    'push_subscriptions', v_subs,
+    'items', v_items,
+    'cron_run_details', v_cron
+  );
+end;
+$$;
+
+-- Destructive and not needed by the browser: pg_cron runs as the job owner, so
+-- strip the default PUBLIC execute grant that create function installs.
+revoke execute on function run_maintenance(interval, interval) from public, anon, authenticated;
+
 -- Removes p_qty from a single stock batch. If p_qty covers the batch's entire
 -- remaining quantity the batch is soft-deleted (deleted_at + deleted_why) so
--- purchase history is preserved; otherwise the batch's quantity is reduced.
+-- uncook_meal can still find the row it logged, and run_maintenance() drops it
+-- once that can no longer matter; otherwise the batch's quantity is reduced.
 -- Raises if p_qty is invalid or exceeds what's left in the batch.
 create or replace function remove_stock(p_stock_entry_id uuid, p_qty double precision)
 returns void
@@ -741,4 +849,24 @@ select cron.schedule(
     timeout_millis := 10000
   );
   $$
+);
+
+-- ── Nightly storage upkeep (pg_cron) ───────────────────────────────────────
+-- Reaps the dead rows normal use leaves behind: soft-deleted stock batches,
+-- rotated-away push endpoints, and orphaned item names. Also trims pg_cron's
+-- own history, which otherwise grows at one row per scheduled run forever.
+-- Runs 04:17 UTC to miss the :00/:15/:30/:45 push job. The maintenance run's
+-- own job_run_details row is still open (end_time is null) while it executes,
+-- so run_maintenance() can never delete the bookkeeping of the run it is part
+-- of. To see what a run reclaimed:
+--   select start_time, status, result from cron.job_run_details
+--   where jobname = 'grocery-maintenance' order by start_time desc limit 10;
+select cron.unschedule(jobid)
+from cron.job
+where jobname = 'grocery-maintenance';
+
+select cron.schedule(
+  'grocery-maintenance',
+  '17 4 * * *',
+  $$ select public.run_maintenance() $$
 );

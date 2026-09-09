@@ -2,7 +2,6 @@ import { createContext } from 'react'
 import type {
   AllowedItem,
   Allocation,
-  Item,
   Meal,
   MealUntracked,
   MealWishlist,
@@ -13,7 +12,6 @@ import type {
 
 export interface AppData {
   allowedItems: AllowedItem[]
-  items: Item[]
   units: Unit[]
   entries: StockEntry[]
   purchases: Purchase[]
