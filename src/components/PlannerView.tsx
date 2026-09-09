@@ -68,14 +68,24 @@ export function PlannerView() {
   }
 
   const clearWeek = async () => {
-    if (!confirm('Remove all uncooked meals and their allocations?')) return
-    const ok = await run(() => api.clearUncookedMeals())
+    if (!confirm('Remove all uncooked meals, their allocations and photos?'))
+      return
+    const ok = await run(() =>
+      api.clearUncookedMeals(
+        meals.filter((m) => !m.cooked).map((m) => m.photo_path),
+      ),
+    )
     if (ok) setSelectedMealId(null)
   }
 
   const clearCooked = async () => {
-    if (!confirm('Remove all cooked meals and their allocations?')) return
-    const ok = await run(() => api.clearCookedMeals())
+    if (!confirm('Remove all cooked meals, their allocations and photos?'))
+      return
+    const ok = await run(() =>
+      api.clearCookedMeals(
+        meals.filter((m) => m.cooked).map((m) => m.photo_path),
+      ),
+    )
     if (ok) setSelectedMealId(null)
   }
 
@@ -216,7 +226,9 @@ export function PlannerView() {
                             if (confirm(`Delete meal "${meal.name}"?`)) {
                               if (selectedMealId === meal.id)
                                 setSelectedMealId(null)
-                              void run(() => api.deleteMeal(meal.id))
+                              void run(() =>
+                                api.deleteMeal(meal.id, meal.photo_path),
+                              )
                             }
                           }}
                           onRename={(name) =>

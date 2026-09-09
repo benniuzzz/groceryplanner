@@ -293,13 +293,70 @@ export async function deleteMealPhoto(path: string): Promise<void> {
   if (error) throw error
 }
 
+export async function deleteMealPhotos(
+  paths: (string | null | undefined)[],
+): Promise<void> {
+  const unique = [...new Set(paths.filter((p): p is string => Boolean(p)))]
+  await removePhotoPaths(unique)
+}
+
 export function mealPhotoUrl(path: string): string {
   return supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl
 }
 
-export async function deleteMeal(id: string): Promise<void> {
+async function listPhotoEntries(
+  prefix: string,
+): Promise<{ name: string; id: string | null }[]> {
+  const entries: { name: string; id: string | null }[] = []
+  const limit = 1000
+  for (let offset = 0; ; offset += limit) {
+    const { data, error } = await supabase.storage
+      .from(PHOTO_BUCKET)
+      .list(prefix, { limit, offset })
+    if (error) throw error
+    const page = data ?? []
+    entries.push(...page)
+    if (page.length < limit) break
+  }
+  return entries
+}
+
+async function removePhotoPaths(paths: string[]): Promise<number> {
+  if (paths.length === 0) return 0
+  const { error } = await supabase.storage.from(PHOTO_BUCKET).remove(paths)
+  if (error) throw error
+  return paths.length
+}
+
+export async function cleanupOrphanedMealPhotos(): Promise<number> {
+  const { data: mealRows, error: mealError } = await supabase
+    .from('meals')
+    .select('id')
+  if (mealError) throw mealError
+  const liveMealIds = new Set((mealRows as { id: string }[]).map((m) => m.id))
+
+  const root = await listPhotoEntries('')
+  const strayFiles = root.filter((e) => e.id !== null).map((e) => e.name)
+  const folders = root.filter((e) => e.id === null).map((e) => e.name)
+
+  let removed = await removePhotoPaths(strayFiles)
+  for (const folder of folders) {
+    if (liveMealIds.has(folder)) continue
+    const inside = await listPhotoEntries(folder)
+    removed += await removePhotoPaths(
+      inside.filter((e) => e.id !== null).map((e) => `${folder}/${e.name}`),
+    )
+  }
+  return removed
+}
+
+export async function deleteMeal(
+  id: string,
+  photoPath?: string | null,
+): Promise<void> {
   const { error } = await supabase.from('meals').delete().eq('id', id)
   if (error) throw error
+  await deleteMealPhotos([photoPath])
 }
 
 export async function markCooked(id: string): Promise<void> {
@@ -312,14 +369,20 @@ export async function markUncooked(id: string): Promise<void> {
   if (error) throw error
 }
 
-export async function clearUncookedMeals(): Promise<void> {
+export async function clearUncookedMeals(
+  photoPaths: (string | null)[] = [],
+): Promise<void> {
   const { error } = await supabase.from('meals').delete().eq('cooked', false)
   if (error) throw error
+  await deleteMealPhotos(photoPaths)
 }
 
-export async function clearCookedMeals(): Promise<void> {
+export async function clearCookedMeals(
+  photoPaths: (string | null)[] = [],
+): Promise<void> {
   const { error } = await supabase.from('meals').delete().eq('cooked', true)
   if (error) throw error
+  await deleteMealPhotos(photoPaths)
 }
 
 export async function upsertAllocation(

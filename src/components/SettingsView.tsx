@@ -3,6 +3,7 @@ import * as api from '../lib/api'
 import { useAppData } from '../hooks/useAppData'
 import { btnIconDanger, btnPrimary, enterStagger, inputCls } from './ui'
 import { DailyNotificationSection } from './DailyNotificationSection'
+import { StorageCleanupSection } from './StorageCleanupSection'
 import { InfoTooltip } from './InfoTooltip'
 import { UnitSelect } from './UnitSelect'
 
@@ -341,6 +342,8 @@ export function SettingsView() {
       </section>
 
       <DailyNotificationSection />
+
+      <StorageCleanupSection />
     </div>
   )
 }
