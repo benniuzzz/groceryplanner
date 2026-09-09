@@ -31,6 +31,16 @@ export interface StockEntry {
   items?: { name: string }
 }
 
+export interface Purchase {
+  id: string
+  item_name: string
+  quantity: number
+  unit: string
+  expiry_date: string | null
+  cost: number | null
+  purchased_at: string
+}
+
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner'
 
 export interface Meal {

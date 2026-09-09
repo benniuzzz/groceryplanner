@@ -6,6 +6,7 @@ import type {
   Meal,
   MealUntracked,
   MealWishlist,
+  Purchase,
   StockEntry,
   Unit,
 } from '../lib/types'
@@ -15,7 +16,7 @@ export interface AppData {
   items: Item[]
   units: Unit[]
   entries: StockEntry[]
-  allEntries: StockEntry[]
+  purchases: Purchase[]
   meals: Meal[]
   allocations: Allocation[]
   wishlist: MealWishlist[]

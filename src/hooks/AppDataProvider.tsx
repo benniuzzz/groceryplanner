@@ -7,6 +7,7 @@ import type {
   Meal,
   MealUntracked,
   MealWishlist,
+  Purchase,
   StockEntry,
   Unit,
 } from '../lib/types'
@@ -17,7 +18,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<Item[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [entries, setEntries] = useState<StockEntry[]>([])
-  const [allEntries, setAllEntries] = useState<StockEntry[]>([])
+  const [purchases, setPurchases] = useState<Purchase[]>([])
   const [meals, setMeals] = useState<Meal[]>([])
   const [allocations, setAllocations] = useState<Allocation[]>([])
   const [wishlist, setWishlist] = useState<MealWishlist[]>([])
@@ -32,6 +33,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         itemsData,
         unitsData,
         entriesData,
+        purchasesData,
         mealsData,
         allocationsData,
         wishlistData,
@@ -40,7 +42,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         api.fetchAllowedItems(),
         api.fetchItems(),
         api.fetchUnits(),
-        api.fetchStockEntries(true),
+        api.fetchStockEntries(),
+        api.fetchPurchases(),
         api.fetchMeals(),
         api.fetchAllocations(),
         api.fetchMealWishlist(),
@@ -49,11 +52,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       setAllowedItems(allowedData)
       setItems(itemsData)
       setUnits(unitsData)
-      const active = entriesData.filter(
-        (e) => e.deleted_at === null && e.consumed_at === null,
-      )
-      setEntries(active)
-      setAllEntries(entriesData)
+      setEntries(entriesData)
+      setPurchases(purchasesData)
       setMeals(mealsData)
       setAllocations(allocationsData)
       setWishlist(wishlistData)
@@ -86,7 +86,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   return (
     <DataContext.Provider
-      value={{ allowedItems, items, units, entries, allEntries, meals, allocations, wishlist, untracked, loading, error, refresh, run }}
+        value={{ allowedItems, items, units, entries, purchases, meals, allocations, wishlist, untracked, loading, error, refresh, run }}
     >
       {children}
     </DataContext.Provider>

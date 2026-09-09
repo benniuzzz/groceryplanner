@@ -48,6 +48,23 @@ alter table stock_entries add column if not exists deleted_why text;
 create index if not exists stock_entries_active_idx on stock_entries (consumed_at)
   where consumed_at is null and deleted_at is null;
 
+-- Immutable purchase log: one row per purchase action from the To-Buy List,
+-- written only by purchase_wishlist(). Rows are never updated afterwards (no
+-- status columns), and direct inventory additions are not logged here.
+-- item_name and unit are snapshots taken at purchase time, so renaming items
+-- or units never rewrites history.
+create table if not exists purchases (
+  id uuid primary key default gen_random_uuid(),
+  item_name text not null,
+  quantity double precision not null check (quantity > 0),
+  unit text not null,
+  expiry_date date,
+  cost numeric(10, 2) check (cost >= 0),
+  purchased_at timestamptz not null default now()
+);
+
+create index if not exists purchases_purchased_at_idx on purchases (purchased_at desc);
+
 create table if not exists meals (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -192,6 +209,7 @@ alter table meal_consumption add column if not exists cost numeric(10, 2);
 alter table items enable row level security;
 alter table allowed_items enable row level security;
 alter table stock_entries enable row level security;
+alter table purchases enable row level security;
 alter table meals enable row level security;
 alter table allocations enable row level security;
 alter table meal_wishlist enable row level security;
@@ -204,6 +222,7 @@ alter table push_settings enable row level security;
 drop policy if exists items_all on items;
 drop policy if exists allowed_items_all on allowed_items;
 drop policy if exists stock_entries_all on stock_entries;
+drop policy if exists purchases_all on purchases;
 drop policy if exists meals_all on meals;
 drop policy if exists allocations_all on allocations;
 drop policy if exists meal_wishlist_all on meal_wishlist;
@@ -216,6 +235,7 @@ drop policy if exists push_settings_all on push_settings;
 create policy items_all on items for all to anon, authenticated using (true) with check (true);
 create policy allowed_items_all on allowed_items for all to anon, authenticated using (true) with check (true);
 create policy stock_entries_all on stock_entries for all to anon, authenticated using (true) with check (true);
+create policy purchases_all on purchases for all to anon, authenticated using (true) with check (true);
 create policy meals_all on meals for all to anon, authenticated using (true) with check (true);
 create policy allocations_all on allocations for all to anon, authenticated using (true) with check (true);
 create policy meal_wishlist_all on meal_wishlist for all to anon, authenticated using (true) with check (true);
@@ -354,10 +374,11 @@ begin
 end;
 $$;
 
--- Permanently deletes every stock entry, wiping both current inventory and
--- purchase history. meal_consumption keeps its rows (stock_entry_id is set
--- to null on delete) so cooked meals can still be uncooked.
-create or replace function clear_purchase_history()
+-- Permanently deletes every stock entry, wiping current inventory. The
+-- purchase log (purchases) is not touched. meal_consumption keeps its rows
+-- (stock_entry_id is set to null on delete) so cooked meals can still be
+-- uncooked.
+create or replace function clear_inventory()
 returns void
 language sql
 security definer
@@ -365,6 +386,20 @@ set search_path = public
 as $$
   delete from stock_entries where id is not null;
 $$;
+
+-- Permanently deletes the entire purchase log. Inventory is not touched.
+create or replace function clear_purchases()
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from purchases where id is not null;
+$$;
+
+-- Superseded by clear_inventory() + clear_purchases() now that the purchase
+-- log lives in its own table.
+drop function if exists clear_purchase_history();
 
 -- Removes p_qty from a single stock batch. If p_qty covers the batch's entire
 -- remaining quantity the batch is soft-deleted (deleted_at + deleted_why) so
@@ -424,6 +459,13 @@ $$;
 --
 -- Rows with a null meal_id (general To-Buy List items) skip the allocation
 -- step: their purchased amount lands purely as free household stock.
+--
+-- Each call also writes to the immutable purchase log (purchases table): one
+-- row per (item name, unit) covering the whole call, so a single purchase
+-- action is logged as a single history entry no matter how many wishlist rows
+-- or meals it spans. The logged quantity is the total actually bought and the
+-- logged cost the full p_cost (split proportionally across groups on the rare
+-- multi-item call).
 create or replace function purchase_wishlist(p_ids uuid[], p_qtys double precision[], p_expiry date, p_cost numeric)
 returns void
 language plpgsql
@@ -462,6 +504,42 @@ begin
   into v_total_qty, v_rows
   from indexed
   where bought is not null and bought > 0;
+
+  -- Purchase-log rows for this call, aggregated per (item name, unit). Must
+  -- run before the loop below mutates meal_wishlist. p_cost is split across
+  -- groups proportionally by purchased quantity, the last group absorbing
+  -- rounding so the shares sum exactly to p_cost.
+  with indexed as (
+    select ai.name, mw.unit, p_qtys[i] as bought
+    from meal_wishlist mw
+    join allowed_items ai on ai.id = mw.allowed_item_id
+    cross join unnest(p_ids) with ordinality as u(id, i)
+    where mw.id = u.id
+      and p_qtys[i] is not null and p_qtys[i] > 0
+  ),
+  agg as (
+    select name, unit, sum(bought) as qty
+    from indexed
+    group by name, unit
+  ),
+  shared as (
+    select name, unit, qty,
+           row_number() over (order by name, unit) as rn,
+           count(*) over () as n,
+           sum(qty) over () as total_qty
+    from agg
+  )
+  insert into purchases (item_name, quantity, unit, expiry_date, cost)
+  select name, qty, unit, p_expiry,
+         case
+           when p_cost is null then null
+           when rn = n then p_cost - coalesce(
+             sum(round((p_cost * qty / nullif(total_qty, 0))::numeric, 2))
+               over (order by name, unit
+                     rows between unbounded preceding and 1 preceding), 0)
+           else round((p_cost * qty / nullif(total_qty, 0))::numeric, 2)
+         end
+  from shared;
 
   for w in
     with indexed as (
@@ -544,7 +622,8 @@ $$;
 grant execute on function get_or_create_item(text) to anon, authenticated;
 grant execute on function cook_meal(uuid) to anon, authenticated;
 grant execute on function uncook_meal(uuid) to anon, authenticated;
-grant execute on function clear_purchase_history() to anon, authenticated;
+grant execute on function clear_inventory() to anon, authenticated;
+grant execute on function clear_purchases() to anon, authenticated;
 grant execute on function remove_stock(uuid, double precision) to anon, authenticated;
 grant execute on function purchase_wishlist(uuid[], double precision[], date, numeric) to anon, authenticated;
 grant execute on function unit_in_use(text) to anon, authenticated;

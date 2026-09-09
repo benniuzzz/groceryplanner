@@ -8,6 +8,7 @@ import type {
   MealSlot,
   MealUntracked,
   MealWishlist,
+  Purchase,
   PushSettings,
   StockEntry,
   Unit,
@@ -134,21 +135,24 @@ export async function removeUnit(id: string): Promise<void> {
   if (deleteError) throw deleteError
 }
 
-export async function fetchStockEntries(
-  includeInactive = false,
-): Promise<StockEntry[]> {
-  let query = supabase
+export async function fetchStockEntries(): Promise<StockEntry[]> {
+  const { data, error } = await supabase
     .from('stock_entries')
     .select('*, items(name)')
+    .is('deleted_at', null)
+    .is('consumed_at', null)
     .order('added_at', { ascending: false })
-  if (!includeInactive) {
-    query = query
-      .is('deleted_at', null)
-      .is('consumed_at', null)
-  }
-  const { data, error } = await query
   if (error) throw error
   return data as StockEntry[]
+}
+
+export async function fetchPurchases(): Promise<Purchase[]> {
+  const { data, error } = await supabase
+    .from('purchases')
+    .select('*')
+    .order('purchased_at', { ascending: false })
+  if (error) throw error
+  return data as Purchase[]
 }
 
 export async function fetchMeals(): Promise<Meal[]> {
@@ -222,8 +226,13 @@ export async function removeStock(id: string, qty: number): Promise<void> {
   if (error) throw error
 }
 
-export async function clearPurchaseHistory(): Promise<void> {
-  const { error } = await supabase.rpc('clear_purchase_history')
+export async function clearInventory(): Promise<void> {
+  const { error } = await supabase.rpc('clear_inventory')
+  if (error) throw error
+}
+
+export async function clearPurchases(): Promise<void> {
+  const { error } = await supabase.rpc('clear_purchases')
   if (error) throw error
 }
 

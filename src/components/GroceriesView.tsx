@@ -3,7 +3,7 @@ import * as api from '../lib/api'
 import { computeInventory, rowKey } from '../lib/inventory'
 import { formatDate, formatDateTime } from '../lib/dates'
 import { fmtCost, fmtQty } from '../lib/utils'
-import type { Allocation, AllowedItem, Meal, StockEntry } from '../lib/types'
+import type { Allocation, AllowedItem, Meal, Purchase, StockEntry } from '../lib/types'
 import { useAppData } from '../hooks/useAppData'
 import { ExpiryBadge } from './ExpiryBadge'
 import { AddStockModal } from './AddStockModal'
@@ -30,7 +30,7 @@ export function GroceriesView({
     allowedItems,
     entries,
     allocations,
-    allEntries,
+    purchases,
     wishlist,
     meals,
     run,
@@ -147,7 +147,7 @@ export function GroceriesView({
         onOpenSettings={onOpenSettings}
       />
 
-      <PurchaseHistorySection entries={allEntries} run={run} />
+      <PurchaseHistorySection purchases={purchases} run={run} />
     </div>
   )
 }
@@ -356,10 +356,10 @@ function InventorySection({
             onClick={() => {
               if (
                 confirm(
-                  'Clear all inventory? This permanently deletes your entire stock and history.',
+                  'Clear all inventory? This permanently deletes your entire stock.',
                 )
               ) {
-                void run(() => api.clearPurchaseHistory())
+                void run(() => api.clearInventory())
               }
             }}
           >
@@ -550,22 +550,22 @@ function InventorySection({
 }
 
 function PurchaseHistorySection({
-  entries,
+  purchases,
   run,
 }: {
-  entries: StockEntry[]
+  purchases: Purchase[]
   run: (fn: () => Promise<void>) => Promise<boolean>
 }) {
   const groups = useMemo(() => {
-    const map = new Map<string, StockEntry[]>()
-    for (const e of entries) {
-      const key = formatDateTime(e.added_at)
+    const map = new Map<string, Purchase[]>()
+    for (const p of purchases) {
+      const key = formatDateTime(p.purchased_at)
       const list = map.get(key)
-      if (list) list.push(e)
-      else map.set(key, [e])
+      if (list) list.push(p)
+      else map.set(key, [p])
     }
     return [...map.entries()]
-  }, [entries])
+  }, [purchases])
 
   return (
     <section
@@ -576,7 +576,7 @@ function PurchaseHistorySection({
         <div>
           <h3 className="text-md font-semibold text-slate-900 dark:text-slate-100">
             Purchase History
-            <InfoTooltip text="Every purchase you've logged" />
+            <InfoTooltip text="Every purchase you've made from the To-Buy List — logged once and never changed afterwards." />
           </h3>
         </div>
         <button
@@ -586,10 +586,10 @@ function PurchaseHistorySection({
           onClick={() => {
             if (
               confirm(
-                'Clear all purchase history? This permanently deletes your entire stock and history.',
+                'Clear all purchase history? This permanently deletes your purchase log.',
               )
             ) {
-              void run(() => api.clearPurchaseHistory())
+              void run(() => api.clearPurchases())
             }
           }}
         >
@@ -605,12 +605,12 @@ function PurchaseHistorySection({
       <div className="mt-3 max-h-[26rem] space-y-4 overflow-y-auto pr-1">
         {groups.length === 0 && (
           <p className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
-            Nothing added yet.
+            No purchases logged yet.
           </p>
         )}
         {groups.map(([day, list], i) => {
           const subtotal = list.reduce(
-            (sum, e) => sum + (e.cost ?? 0),
+            (sum, p) => sum + (p.cost ?? 0),
             0,
           )
           return (
@@ -632,39 +632,23 @@ function PurchaseHistorySection({
                 </span>
               </div>
               <ul className="mt-2 space-y-1.5">
-                {list.map((e) => (
+                {list.map((p) => (
                   <li
-                    key={e.id}
+                    key={p.id}
                     className="flex items-center justify-between gap-2 text-sm"
                   >
-                    <span
-                      className={
-                        e.deleted_at || e.consumed_at
-                          ? 'text-slate-400 dark:text-slate-500'
-                          : 'text-slate-700 dark:text-slate-200'
-                      }
-                    >
-                      {e.items?.name ?? 'Unknown'}
+                    <span className="text-slate-700 dark:text-slate-200">
+                      {p.item_name}
                       <span className="text-slate-400 dark:text-slate-500">
                         {' '}
-                        &middot; {fmtQty(e.quantity)} {e.unit}
+                        &middot; {fmtQty(p.quantity)} {p.unit}
                       </span>
-                      {e.consumed_at && (
-                        <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:bg-slate-800 dark:text-slate-500">
-                          consumed
-                        </span>
-                      )}
-                      {e.deleted_at && (
-                        <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:bg-slate-800 dark:text-slate-500">
-                          removed
-                        </span>
-                      )}
                     </span>
                     <span className="flex items-center gap-3">
-                      {e.cost != null && (
-                        <span className="text-slate-600 dark:text-slate-300">{fmtCost(e.cost)}</span>
+                      {p.cost != null && (
+                        <span className="text-slate-600 dark:text-slate-300">{fmtCost(p.cost)}</span>
                       )}
-                      <ExpiryBadge date={e.expiry_date} compact />
+                      <ExpiryBadge date={p.expiry_date} compact />
                     </span>
                   </li>
                 ))}
