@@ -277,6 +277,8 @@ export interface MealPatch {
   recipeUrl?: string | null
   photoPath?: string | null
   remarks?: string | null
+  day?: number
+  slot?: MealSlot
 }
 
 export async function updateMeal(id: string, patch: MealPatch): Promise<void> {
@@ -287,6 +289,8 @@ export async function updateMeal(id: string, patch: MealPatch): Promise<void> {
   if (patch.recipeUrl !== undefined) update.recipe_url = patch.recipeUrl
   if (patch.photoPath !== undefined) update.photo_path = patch.photoPath
   if (patch.remarks !== undefined) update.remarks = patch.remarks
+  if (patch.day !== undefined) update.day = patch.day
+  if (patch.slot !== undefined) update.slot = patch.slot
   const { error } = await supabase.from('meals').update(update).eq('id', id)
   if (error) throw error
 }

@@ -31,6 +31,12 @@ export function PlannerView() {
     slot: MealSlot
   } | null>(null)
   const [newMealName, setNewMealName] = useState('')
+  const [draggingMealId, setDraggingMealId] = useState<string | null>(null)
+  const [dragOverCell, setDragOverCell] = useState<{
+    day: number
+    slot: MealSlot
+  } | null>(null)
+  const [pickedUpMealId, setPickedUpMealId] = useState<string | null>(null)
 
   const today = (new Date().getDay() + 6) % 7
 
@@ -45,6 +51,14 @@ export function PlannerView() {
   )
 
   const selectedMeal = meals.find((m) => m.id === selectedMealId) ?? null
+
+  const pickedUpMeal = meals.find((m) => m.id === pickedUpMealId) ?? null
+
+  const moveMeal = async (mealId: string, day: number, slot: MealSlot) => {
+    const meal = meals.find((m) => m.id === mealId)
+    if (!meal || (meal.day === day && meal.slot === slot)) return
+    await run(() => api.updateMeal(mealId, { day, slot }))
+  }
 
   const allocationCount = (mealId: string) =>
     allocations.filter((a) => a.meal_id === mealId).length
@@ -118,6 +132,36 @@ export function PlannerView() {
         <TodayView meals={todayMeals} allocations={allocations} wishlist={wishlist} untracked={untracked} />
 
         <div className="mt-4">
+          {pickedUpMeal && (
+            <div className="mb-2 flex items-center gap-3 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 shadow-sm dark:border-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4 shrink-0"
+                aria-hidden="true"
+              >
+                <path d="M12 3v12" />
+                <path d="m7 10 5 5 5-5" />
+                <path d="M5 21h14" />
+              </svg>
+              <span className="min-w-0 flex-1">
+                Moving{' '}
+                <span className="font-semibold">{pickedUpMeal.name}</span> — tap
+                a slot to place it.
+              </span>
+              <button
+                type="button"
+                onClick={() => setPickedUpMealId(null)}
+                className="shrink-0 rounded-md border border-emerald-300 bg-white px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-900"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
           <div className="mb-2 flex items-center justify-end gap-2">
             <div className="group relative">
               <button
@@ -209,6 +253,9 @@ export function PlannerView() {
                   )
                   const isAdding =
                     addingCell?.day === day && addingCell.slot === slot
+                  const isDragOver =
+                    dragOverCell?.day === day && dragOverCell?.slot === slot
+                  const isPickUpTarget = pickedUpMealId !== null
                   return (
                     <div
                       key={`${slot}-${day}`}
@@ -216,7 +263,35 @@ export function PlannerView() {
                         day === today
                           ? 'border-amber-300 bg-amber-50/70 ring-1 ring-amber-300 dark:border-amber-700 dark:bg-amber-950/40 dark:ring-amber-700'
                           : 'border-slate-200 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-800/50'
+                      } ${
+                        isDragOver
+                          ? 'outline-2 outline-emerald-500 -outline-offset-2'
+                          : ''
                       }`}
+                      onClick={() => {
+                        if (!isPickUpTarget) return
+                        const mealId = pickedUpMealId
+                        setPickedUpMealId(null)
+                        void moveMeal(mealId, day, slot)
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault()
+                        e.dataTransfer.dropEffect = 'move'
+                        if (!isDragOver) setDragOverCell({ day, slot })
+                      }}
+                      onDragLeave={(e) => {
+                        if (e.currentTarget.contains(e.relatedTarget as Node | null))
+                          return
+                        setDragOverCell(null)
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        const mealId =
+                          e.dataTransfer.getData('text/plain') || draggingMealId
+                        setDragOverCell(null)
+                        setDraggingMealId(null)
+                        if (mealId) void moveMeal(mealId, day, slot)
+                      }}
                       style={{
                         animationDelay: `${150 + (slotIdx + day) * 22}ms`,
                       }}
@@ -230,7 +305,23 @@ export function PlannerView() {
                           untrackedCount={untrackedCount(meal.id)}
                           canCook={canCook(meal.id)}
                           selected={meal.id === selectedMealId}
-                          onSelect={() => setSelectedMealId(meal.id)}
+                          dragging={draggingMealId === meal.id}
+                          pickedUp={pickedUpMealId === meal.id}
+                          pickUpActive={pickedUpMealId !== null}
+                          onSelect={() => {
+                            if (pickedUpMealId === meal.id) {
+                              setPickedUpMealId(null)
+                              return
+                            }
+                            if (pickedUpMealId) return
+                            setSelectedMealId(meal.id)
+                          }}
+                          onPickUp={() => setPickedUpMealId(meal.id)}
+                          onDragStart={() => setDraggingMealId(meal.id)}
+                          onDragEnd={() => {
+                            setDraggingMealId(null)
+                            setDragOverCell(null)
+                          }}
                           onToggleCook={() =>
                             run(() =>
                               meal.cooked
@@ -259,6 +350,9 @@ export function PlannerView() {
                             className={`${inputCls} w-full px-2 py-1.5`}
                             placeholder="Meal name"
                             value={newMealName}
+                            onClick={(e) => {
+                              if (isPickUpTarget) e.stopPropagation()
+                            }}
                             onChange={(e) => setNewMealName(e.target.value)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') void addMeal(day, slot)
@@ -271,13 +365,17 @@ export function PlannerView() {
                           <div className="flex gap-1">
                             <button
                               className="flex-1 rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700"
-                              onClick={() => void addMeal(day, slot)}
+                              onClick={() => {
+                                if (isPickUpTarget) return
+                                void addMeal(day, slot)
+                              }}
                             >
                               Add
                             </button>
                             <button
                               className="flex-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
                               onClick={() => {
+                                if (isPickUpTarget) return
                                 setAddingCell(null)
                                 clearNewMealFields()
                               }}
@@ -290,6 +388,7 @@ export function PlannerView() {
                         <button
                           className="w-full rounded-md border border-dashed border-slate-300 py-1.5 text-sm text-slate-400 hover:border-emerald-400 hover:text-emerald-600 dark:border-slate-600 dark:text-slate-500 dark:hover:border-emerald-500 dark:hover:text-emerald-400"
                           onClick={() => {
+                            if (isPickUpTarget) return
                             setChoosingCell({ day, slot })
                             clearNewMealFields()
                           }}

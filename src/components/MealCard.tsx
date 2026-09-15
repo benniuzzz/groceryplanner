@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import type { DragEvent, MouseEvent, PointerEvent } from 'react'
 import type { Meal } from '../lib/types'
 import { mealDetailsLabel } from '../lib/utils'
 import { inputCls } from './ui'
@@ -10,7 +11,13 @@ export function MealCard({
   untrackedCount,
   canCook,
   selected,
+  dragging,
+  pickedUp,
+  pickUpActive,
   onSelect,
+  onPickUp,
+  onDragStart,
+  onDragEnd,
   onToggleCook,
   onDelete,
   onRename,
@@ -21,7 +28,13 @@ export function MealCard({
   untrackedCount: number
   canCook: boolean
   selected: boolean
+  dragging?: boolean
+  pickedUp?: boolean
+  pickUpActive?: boolean
   onSelect: () => void
+  onPickUp?: () => void
+  onDragStart?: () => void
+  onDragEnd?: () => void
   onToggleCook: () => Promise<boolean>
   onDelete: () => void
   onRename: (name: string) => Promise<boolean>
@@ -30,6 +43,57 @@ export function MealCard({
   const [editName, setEditName] = useState('')
   const [toggling, setToggling] = useState(false)
   const details = mealDetailsLabel(meal)
+
+  // Touch "pick up" gesture: a 400ms hold without moving grabs the card so it
+  // can be placed by tapping a target cell. A small movement before the hold
+  // fires is treated as a scroll attempt and cancels it; the click that fires
+  // on release right after a successful pick-up is swallowed once so the grab
+  // itself doesn't open the allocation modal.
+  const holdTimer = useRef<number | null>(null)
+  const holdStart = useRef<{ x: number; y: number } | null>(null)
+  const suppressClick = useRef(false)
+
+  const clearHold = () => {
+    if (holdTimer.current !== null) {
+      window.clearTimeout(holdTimer.current)
+      holdTimer.current = null
+    }
+    holdStart.current = null
+  }
+
+  const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'touch' || pickedUp || pickUpActive) return
+    holdStart.current = { x: e.clientX, y: e.clientY }
+    holdTimer.current = window.setTimeout(() => {
+      holdTimer.current = null
+      holdStart.current = null
+      suppressClick.current = true
+      window.setTimeout(() => {
+        suppressClick.current = false
+      }, 700)
+      onPickUp?.()
+    }, 400)
+  }
+
+  const handlePointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (!holdStart.current) return
+    const dx = e.clientX - holdStart.current.x
+    const dy = e.clientY - holdStart.current.y
+    if (dx * dx + dy * dy > 100) clearHold()
+  }
+
+  const handleClickCapture = (e: MouseEvent<HTMLDivElement>) => {
+    if (!suppressClick.current) return
+    suppressClick.current = false
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDragStart = (e: DragEvent<HTMLDivElement>) => {
+    e.dataTransfer.setData('text/plain', meal.id)
+    e.dataTransfer.effectAllowed = 'move'
+    onDragStart?.()
+  }
 
   const startRename = () => {
     setEditName(meal.name)
@@ -62,19 +126,34 @@ export function MealCard({
 
   return (
     <div
+      draggable={!editing}
+      onDragStart={handleDragStart}
+      onDragEnd={() => onDragEnd?.()}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={clearHold}
+      onPointerCancel={clearHold}
+      onClickCapture={handleClickCapture}
+      onContextMenu={(e) => {
+        if (!editing) e.preventDefault()
+      }}
       onClick={onSelect}
-      className={`cursor-pointer rounded-lg border p-2 text-left text-sm transition-colors ${
+      className={`relative cursor-pointer rounded-lg border p-2 text-left text-sm transition-colors select-none [-webkit-touch-callout:none] ${
         meal.cooked
           ? 'border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500'
           : selected
             ? 'border-emerald-500 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-950/40'
             : 'border-slate-200 bg-white hover:border-emerald-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-emerald-700'
+      } ${dragging ? 'opacity-50' : ''} ${
+        pickedUp
+          ? 'z-10 ring-2 ring-emerald-500 shadow-lg dark:ring-emerald-400'
+          : ''
       }`}
     >
       {editing ? (
         <input
           autoFocus
-          className={`${inputCls} w-full min-w-0 px-2 py-1`}
+          className={`${inputCls} w-full min-w-0 px-2 py-1 select-text`}
           value={editName}
           onClick={(e) => e.stopPropagation()}
           onChange={(e) => setEditName(e.target.value)}
