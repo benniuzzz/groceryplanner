@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import * as api from '../lib/api'
 import { useAppData } from '../hooks/useAppData'
 import { InfoTooltip } from './InfoTooltip'
+import PhotoViewer from './PhotoViewer'
 import { RecipeModal } from './RecipeModal'
 import { btnPrimary, enterStagger, inputCls } from './ui'
 
@@ -11,6 +12,7 @@ export function RecipesView() {
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null)
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
+  const [viewerPhoto, setViewerPhoto] = useState<{ src: string; alt: string } | null>(null)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -105,19 +107,26 @@ export function RecipesView() {
               >
                 <div className="flex items-start gap-3">
                   {recipe.photo_path ? (
-                    <a
-                      href={api.mealPhotoUrl(recipe.photo_path)}
-                      target="_blank"
-                      rel="noreferrer"
-                      title="Open full size"
-                      onClick={(e) => e.stopPropagation()}
+                    <button
+                      type="button"
+                      title="View full size"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (recipe.photo_path) {
+                          setViewerPhoto({
+                            src: api.mealPhotoUrl(recipe.photo_path),
+                            alt: `Recipe photo for ${recipe.name}`,
+                          })
+                        }
+                      }}
+                      className="shrink-0 cursor-zoom-in"
                     >
                       <img
                         src={api.mealPhotoUrl(recipe.photo_path)}
                         alt={`Recipe photo for ${recipe.name}`}
-                        className="h-14 w-14 shrink-0 rounded-lg border border-slate-200 object-cover dark:border-slate-700"
+                        className="h-14 w-14 rounded-lg border border-slate-200 object-cover dark:border-slate-700"
                       />
-                    </a>
+                    </button>
                   ) : (
                     <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-300 dark:bg-slate-800 dark:text-slate-600">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6" aria-hidden="true">
@@ -187,6 +196,10 @@ export function RecipesView() {
           recipe={selectedRecipe}
           onClose={() => setSelectedRecipeId(null)}
         />
+      )}
+
+      {viewerPhoto && (
+        <PhotoViewer src={viewerPhoto.src} alt={viewerPhoto.alt} onClose={() => setViewerPhoto(null)} />
       )}
     </div>
   )

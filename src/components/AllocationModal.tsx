@@ -9,6 +9,7 @@ import { ItemCombobox } from './ItemCombobox'
 import { InfoTooltip } from './InfoTooltip'
 import { TimePicker } from './TimePicker'
 import { UnitSelect } from './UnitSelect'
+import PhotoViewer from './PhotoViewer'
 import { btnIconDanger, btnPrimary, btnSecondary, inputCls } from './ui'
 
 // Deleting a photo only ever reclaims space, so a failed delete must not undo
@@ -57,6 +58,7 @@ export function AllocationModal({
   const [showWishlistForm, setShowWishlistForm] = useState(false)
   const [showAllocationForm, setShowAllocationForm] = useState(false)
   const [showUntrackedForm, setShowUntrackedForm] = useState(false)
+  const [viewerOpen, setViewerOpen] = useState(false)
 
   useEffect(() => {
     if (!unUnit && units.length > 0) setUnUnit(units[0].name)
@@ -355,18 +357,18 @@ export function AllocationModal({
               <span>Photo</span>
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 {meal.photo_path && (
-                  <a
-                    href={api.mealPhotoUrl(meal.photo_path)}
-                    target="_blank"
-                    rel="noreferrer"
-                    title="Open full size"
+                  <button
+                    type="button"
+                    title="View full size"
+                    onClick={() => setViewerOpen(true)}
+                    className="cursor-zoom-in"
                   >
                     <img
                       src={api.mealPhotoUrl(meal.photo_path)}
                       alt={`Recipe photo for ${meal.name}`}
                       className="h-16 w-16 rounded-lg border border-slate-200 object-cover dark:border-slate-700"
                     />
-                  </a>
+                  </button>
                 )}
                 <button
                   type="button"
@@ -764,6 +766,13 @@ export function AllocationModal({
           )}
         </section>
       </div>
+      {viewerOpen && meal.photo_path && (
+        <PhotoViewer
+          src={api.mealPhotoUrl(meal.photo_path)}
+          alt={`Recipe photo for ${meal.name}`}
+          onClose={() => setViewerOpen(false)}
+        />
+      )}
     </div>,
     document.body,
   )

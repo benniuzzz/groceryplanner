@@ -11,6 +11,7 @@ import {
   type MealUntracked,
   type MealWishlist,
 } from '../lib/types'
+import PhotoViewer from './PhotoViewer'
 
 const SLOT_ACCENTS: Record<
   MealSlot,
@@ -53,6 +54,7 @@ export function TodayView({
   const slotMeals = (slot: MealSlot) =>
     meals.filter((m) => m.slot === slot)
   const [copied, setCopied] = useState(false)
+  const [viewerPhoto, setViewerPhoto] = useState<{ src: string; alt: string } | null>(null)
 
   const text = useMemo(
     () => buildTodayText(meals, allocations, wishlist, untracked, dateLabel),
@@ -176,19 +178,25 @@ export function TodayView({
                     </div>
                   )}
                   {meal.photo_path && (
-                    <a
-                      href={mealPhotoUrl(meal.photo_path)}
-                      target="_blank"
-                      rel="noreferrer"
-                      title="Open recipe photo"
-                      className="mt-1 block"
+                    <button
+                      type="button"
+                      title="View photo"
+                      onClick={() => {
+                        if (meal.photo_path) {
+                          setViewerPhoto({
+                            src: mealPhotoUrl(meal.photo_path),
+                            alt: `Recipe photo for ${meal.name}`,
+                          })
+                        }
+                      }}
+                      className="mt-1 block w-full cursor-zoom-in"
                     >
                       <img
                         src={mealPhotoUrl(meal.photo_path)}
                         alt={`Recipe photo for ${meal.name}`}
                         className="h-24 w-full rounded-md border border-slate-200 object-cover dark:border-slate-700"
                       />
-                    </a>
+                    </button>
                   )}
                   {meal.recipe_url && (
                     <a
@@ -227,6 +235,9 @@ export function TodayView({
           </div>
         ))}
       </div>
+      {viewerPhoto && (
+        <PhotoViewer src={viewerPhoto.src} alt={viewerPhoto.alt} onClose={() => setViewerPhoto(null)} />
+      )}
     </div>
   )
 }
