@@ -6,6 +6,7 @@ import { useAppData } from './hooks/useAppData'
 import { useTheme } from './hooks/useTheme'
 import { GroceriesView } from './components/GroceriesView'
 import { PlannerView } from './components/PlannerView'
+import { RecipesView } from './components/RecipesView'
 import { SettingsView } from './components/SettingsView'
 import { Sidebar } from './components/Sidebar'
 import type { Tab } from './components/nav'
@@ -22,7 +23,7 @@ export default function App() {
 function initialTab(): Tab {
   try {
     const tab = new URLSearchParams(window.location.search).get('tab')
-    if (tab === 'planner' || tab === 'settings') return tab
+    if (tab === 'planner' || tab === 'recipes' || tab === 'settings') return tab
   } catch {
     // ignore unparseable URLs
   }
@@ -117,6 +118,7 @@ function Shell() {
                 <GroceriesView onOpenSettings={() => setTab('settings')} />
               )}
               {tab === 'planner' && <PlannerView />}
+              {tab === 'recipes' && <RecipesView />}
               {tab === 'settings' && <SettingsView />}
             </>
           )}

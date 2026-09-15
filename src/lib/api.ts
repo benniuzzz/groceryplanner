@@ -9,6 +9,7 @@ import type {
   MealWishlist,
   Purchase,
   PushSettings,
+  Recipe,
   StockEntry,
   Unit,
 } from './types'
@@ -57,6 +58,36 @@ export async function updateAllowedItem(
 }
 
 export async function removeAllowedItem(id: string): Promise<void> {
+  // Deleting an allowed_item cascades away any recipe ingredient rows that
+  // reference it, which would silently thin out saved recipes — refuse while
+  // they still use it (same philosophy as unit_in_use for units).
+  const { data: used, error: usedError } = await supabase
+    .from('recipe_ingredients')
+    .select('recipes(name)')
+    .eq('allowed_item_id', id)
+  if (usedError) throw usedError
+  const names = [
+    ...new Set(
+      (used as unknown as { recipes: { name: string } | null }[])
+        .map((r) => r.recipes?.name)
+        .filter((n): n is string => Boolean(n)),
+    ),
+  ]
+  if (names.length > 0) {
+    const { data: item, error: itemError } = await supabase
+      .from('allowed_items')
+      .select('name')
+      .eq('id', id)
+      .single()
+    if (itemError) throw itemError
+    throw new Error(
+      `"${(item as { name: string }).name}" is an ingredient of ${
+        names.length === 1 ? 'recipe' : 'recipes'
+      } ${names
+        .map((n) => `"${n}"`)
+        .join(', ')}. Remove it from those recipes first.`,
+    )
+  }
   const { error } = await supabase.from('allowed_items').delete().eq('id', id)
   if (error) throw error
 }
@@ -90,7 +121,7 @@ export async function updateUnit(id: string, newName: string): Promise<void> {
     if (checkError) throw checkError
     if (inUse === true) {
       throw new Error(
-        `"${oldName}" is in use on inventory or meals and cannot be renamed.`,
+        `"${oldName}" is in use on inventory, meals or recipes and cannot be renamed.`,
       )
     }
   }
@@ -115,7 +146,7 @@ export async function removeUnit(id: string): Promise<void> {
   if (checkError) throw checkError
   if (inUse === true) {
     throw new Error(
-      `"${name}" is in use on inventory or meals and cannot be deleted.`,
+      `"${name}" is in use on inventory, meals or recipes and cannot be deleted.`,
     )
   }
   const { error: deleteError } = await supabase
@@ -263,19 +294,30 @@ export async function updateMeal(id: string, patch: MealPatch): Promise<void> {
 const PHOTO_BUCKET = 'meal-photos'
 
 // Compresses the picked/captured image client-side, uploads it to the public
-// meal-photos bucket under the meal's id, and returns the object path to save
-// on meals.photo_path.
-export async function uploadMealPhoto(
-  mealId: string,
+// meal-photos bucket under the owner's id — a meal or a recipe; both are
+// uuids, so their path folders never collide — and returns the object path
+// to save on photo_path.
+export async function uploadPhoto(
+  ownerId: string,
   file: File,
 ): Promise<string> {
   const blob = await compressImage(file)
-  const path = `${mealId}/${Date.now()}.jpg`
+  const path = `${ownerId}/${Date.now()}.jpg`
   const { error } = await supabase.storage
     .from(PHOTO_BUCKET)
     .upload(path, blob, { contentType: 'image/jpeg', upsert: true })
   if (error) throw error
   return path
+}
+
+// Copies an existing photo object to a new path. Meals and recipes must never
+// share a photo_path: deleting one side would otherwise delete the other's
+// object, so linking them always duplicates the file first.
+export async function copyPhoto(fromPath: string, toPath: string): Promise<void> {
+  const { error } = await supabase.storage
+    .from(PHOTO_BUCKET)
+    .copy(fromPath, toPath)
+  if (error) throw error
 }
 
 export async function deleteMealPhoto(path: string): Promise<void> {
@@ -318,23 +360,27 @@ async function removePhotoPaths(paths: string[]): Promise<number> {
   return paths.length
 }
 
-// Deletes every object in the bucket except the photo each meal currently
-// points at. Two cases matter: folders belonging to deleted meals (nothing
-// references them), and superseded uploads inside the folder of a LIVE meal —
-// an interrupted or failed photo replace leaves the previous file behind, and
-// because uploads are timestamped they never overwrite each other, so those
-// orphans would otherwise pile up invisibly forever.
+// Deletes every object in the bucket except the photo each meal or recipe
+// currently points at. Two cases matter: folders belonging to deleted meals
+// or recipes (nothing references them), and superseded uploads inside the
+// folder of a LIVE meal or recipe — an interrupted or failed photo replace
+// leaves the previous file behind, and because uploads are timestamped they
+// never overwrite each other, so those orphans would otherwise pile up
+// invisibly forever.
 export async function cleanupOrphanedMealPhotos(): Promise<number> {
-  const { data: mealRows, error: mealError } = await supabase
-    .from('meals')
-    .select('id, photo_path')
-  if (mealError) throw mealError
-  const referenced = new Map(
-    (mealRows as { id: string; photo_path: string | null }[]).map((m) => [
-      m.id,
-      m.photo_path,
-    ]),
-  )
+  const [mealRes, recipeRes] = await Promise.all([
+    supabase.from('meals').select('id, photo_path'),
+    supabase.from('recipes').select('id, photo_path'),
+  ])
+  if (mealRes.error) throw mealRes.error
+  if (recipeRes.error) throw recipeRes.error
+  const referenced = new Map<string, string | null>()
+  for (const row of [
+    ...(mealRes.data as { id: string; photo_path: string | null }[]),
+    ...(recipeRes.data as { id: string; photo_path: string | null }[]),
+  ]) {
+    referenced.set(row.id, row.photo_path)
+  }
 
   const root = await listPhotoEntries('')
   const strayFiles = root.filter((e) => e.id !== null).map((e) => e.name)
@@ -361,6 +407,57 @@ export async function deleteMeal(
   const { error } = await supabase.from('meals').delete().eq('id', id)
   if (error) throw error
   await deleteMealPhotos([photoPath])
+}
+
+// Plans a meal from a saved recipe: one transactional RPC creates the meal,
+// copies the recipe's link/remarks, reserves whatever stock is still
+// unallocated and wishlists the rest. The recipe's photo object is then
+// duplicated into the meal's own storage folder so the two never share a
+// photo_path; a failed copy just leaves the meal without a photo.
+export async function applyRecipeToMeal(
+  recipe: Recipe,
+  day: number,
+  slot: MealSlot,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('create_meal_from_recipe', {
+    p_recipe_id: recipe.id,
+    p_day: day,
+    p_slot: slot,
+  })
+  if (error) throw error
+  const mealId = data as string
+  if (recipe.photo_path) {
+    try {
+      const path = `${mealId}/${Date.now()}.jpg`
+      await copyPhoto(recipe.photo_path, path)
+      await updateMeal(mealId, { photoPath: path })
+    } catch {
+      // best-effort: the meal stays usable without the photo
+    }
+  }
+  return mealId
+}
+
+// Saves a planner meal as a reusable recipe (snapshot): one transactional RPC
+// copies name/link/remarks and maps the meal's ingredients, then the meal's
+// photo object is duplicated into the recipe's own storage folder. A failed
+// copy just leaves the recipe without a photo.
+export async function saveMealToRecipe(meal: Meal): Promise<string> {
+  const { data, error } = await supabase.rpc('save_meal_to_recipe', {
+    p_meal_id: meal.id,
+  })
+  if (error) throw error
+  const recipeId = data as string
+  if (meal.photo_path) {
+    try {
+      const path = `${recipeId}/${Date.now()}.jpg`
+      await copyPhoto(meal.photo_path, path)
+      await updateRecipe(recipeId, { photoPath: path })
+    } catch {
+      // best-effort: the recipe stays usable without the photo
+    }
+  }
+  return recipeId
 }
 
 export async function markCooked(id: string): Promise<void> {
@@ -460,6 +557,105 @@ export async function upsertUntrackedIngredient(
 
 export async function deleteUntrackedIngredient(id: string): Promise<void> {
   const { error } = await supabase.from('meal_untracked').delete().eq('id', id)
+  if (error) throw error
+}
+
+// Recipes are fetched with their ingredient rows nested in one round trip so
+// RecipesView never needs follow-up queries.
+export async function fetchRecipes(): Promise<Recipe[]> {
+  const { data, error } = await supabase
+    .from('recipes')
+    .select(
+      '*, recipe_ingredients(*, allowed_items(id, name, unit)), recipe_untracked(*)',
+    )
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data as Recipe[]
+}
+
+export async function createRecipe(
+  name: string,
+  recipeUrl?: string | null,
+  remarks?: string | null,
+): Promise<string> {
+  const { data, error } = await supabase
+    .from('recipes')
+    .insert({ name, recipe_url: recipeUrl ?? null, remarks: remarks ?? null })
+    .select('id')
+    .single()
+  if (error) throw error
+  return (data as { id: string }).id
+}
+
+export interface RecipePatch {
+  name?: string
+  recipeUrl?: string | null
+  photoPath?: string | null
+  remarks?: string | null
+}
+
+export async function updateRecipe(id: string, patch: RecipePatch): Promise<void> {
+  const update: Record<string, string | number | null> = {}
+  if (patch.name !== undefined) update.name = patch.name
+  if (patch.recipeUrl !== undefined) update.recipe_url = patch.recipeUrl
+  if (patch.photoPath !== undefined) update.photo_path = patch.photoPath
+  if (patch.remarks !== undefined) update.remarks = patch.remarks
+  const { error } = await supabase.from('recipes').update(update).eq('id', id)
+  if (error) throw error
+}
+
+// Rows are deleted before the storage object (see deleteMeal): a failed
+// storage call only leaves an orphan the sweep reclaims, never a dangling
+// photo_path.
+export async function deleteRecipe(
+  id: string,
+  photoPath?: string | null,
+): Promise<void> {
+  const { error } = await supabase.from('recipes').delete().eq('id', id)
+  if (error) throw error
+  await deleteMealPhotos([photoPath])
+}
+
+export async function upsertRecipeIngredient(
+  recipeId: string,
+  allowedItemId: string,
+  unit: string,
+  quantity: number,
+): Promise<void> {
+  const { error } = await supabase
+    .from('recipe_ingredients')
+    .upsert(
+      { recipe_id: recipeId, allowed_item_id: allowedItemId, unit, quantity },
+      { onConflict: 'recipe_id,allowed_item_id,unit' },
+    )
+  if (error) throw error
+}
+
+export async function deleteRecipeIngredient(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('recipe_ingredients')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function upsertRecipeUntracked(
+  recipeId: string,
+  name: string,
+  unit: string,
+  quantity: number,
+): Promise<void> {
+  const { error } = await supabase
+    .from('recipe_untracked')
+    .upsert(
+      { recipe_id: recipeId, name, unit, quantity },
+      { onConflict: 'recipe_id,name,unit' },
+    )
+  if (error) throw error
+}
+
+export async function deleteRecipeUntracked(id: string): Promise<void> {
+  const { error } = await supabase.from('recipe_untracked').delete().eq('id', id)
   if (error) throw error
 }
 

@@ -79,6 +79,35 @@ export interface MealUntracked {
   created_at: string
 }
 
+export interface RecipeIngredient {
+  id: string
+  recipe_id: string
+  allowed_item_id: string
+  unit: string
+  quantity: number
+  allowed_items?: { id: string; name: string; unit: string }
+}
+
+export interface RecipeUntracked {
+  id: string
+  recipe_id: string
+  name: string
+  unit: string
+  quantity: number
+  created_at: string
+}
+
+export interface Recipe {
+  id: string
+  name: string
+  recipe_url: string | null
+  photo_path: string | null
+  remarks: string | null
+  created_at: string
+  recipe_ingredients?: RecipeIngredient[]
+  recipe_untracked?: RecipeUntracked[]
+}
+
 export interface PushSettings {
   enabled: boolean
   time: string

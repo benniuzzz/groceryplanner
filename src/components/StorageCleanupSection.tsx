@@ -37,14 +37,14 @@ export function StorageCleanupSection() {
     <section className="animate-fade-up" style={{ animationDelay: '300ms' }}>
       <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
         Meal photo storage
-        <InfoTooltip text="Recipe photos live in Supabase Storage and count towards your storage quota. This keeps the one photo each meal currently uses and deletes everything else in the bucket — leftovers from deleted meals and from uploads that were replaced or interrupted." />
+        <InfoTooltip text="Recipe photos live in Supabase Storage and count towards your storage quota. This keeps the one photo each meal and recipe currently uses and deletes everything else in the bucket — leftovers from deleted meals and recipes and from uploads that were replaced or interrupted." />
       </h2>
 
       <div className="mt-4 space-y-4" style={enterStagger(1, 40, 10)}>
         <p className="text-sm text-slate-500 dark:text-slate-400">
           Replacing or abandoning a photo can leave the old file in the cloud
-          where nothing points at it any more. Removing those is safe: the photo
-          a meal still displays is never touched.
+          where nothing points at it any more. Removing those is safe: photos a
+          meal or recipe still displays are never touched.
         </p>
 
         <div className="flex flex-wrap items-center gap-3">

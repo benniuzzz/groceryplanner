@@ -6,6 +6,7 @@ import type {
   MealUntracked,
   MealWishlist,
   Purchase,
+  Recipe,
   StockEntry,
   Unit,
 } from '../lib/types'
@@ -19,6 +20,7 @@ export interface AppData {
   allocations: Allocation[]
   wishlist: MealWishlist[]
   untracked: MealUntracked[]
+  recipes: Recipe[]
   loading: boolean
   error: string | null
   refresh: () => Promise<void>

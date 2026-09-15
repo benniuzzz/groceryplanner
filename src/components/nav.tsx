@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-export type Tab = 'groceries' | 'planner' | 'settings'
+export type Tab = 'groceries' | 'planner' | 'recipes' | 'settings'
 
 interface NavItem {
   id: Tab
@@ -30,6 +30,16 @@ export const NAV_ITEMS: NavItem[] = [
         <path d="M8 3v4" />
         <path d="M16 3v4" />
         <path d="M3 10h18" />
+      </svg>
+    ),
+  },
+  {
+    id: 'recipes',
+    label: 'Recipes',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={iconCls} aria-hidden="true">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
       </svg>
     ),
   },

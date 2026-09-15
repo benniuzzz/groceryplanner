@@ -155,6 +155,45 @@ create table if not exists meal_untracked (
   unique (meal_id, name, unit)
 );
 
+-- Saved reusable meals (templates): name + ingredient list + the same optional
+-- extras meals have (recipe URL, photo in the 'meal-photos' bucket, remarks).
+-- No day/slot/time/headcount — those live on planner meals only. Rows persist
+-- until the user deletes them.
+create table if not exists recipes (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  recipe_url text,
+  photo_path text,
+  remarks text,
+  created_at timestamptz not null default now()
+);
+
+-- Tracked recipe ingredients, backed by an allowed_items entry (fixed unit in
+-- the dropdown, but the stored unit is free text so a snapshotted allocation
+-- keeps its original unit and quantity). When a meal is planned from the
+-- recipe (create_meal_from_recipe), these are allocated from whatever stock
+-- is still unallocated, and anything unavailable goes to the meal's wishlist.
+create table if not exists recipe_ingredients (
+  id uuid primary key default gen_random_uuid(),
+  recipe_id uuid not null references recipes(id) on delete cascade,
+  allowed_item_id uuid not null references allowed_items(id) on delete cascade,
+  unit text not null,
+  quantity double precision not null check (quantity > 0),
+  unique (recipe_id, allowed_item_id, unit)
+);
+
+-- Free-text recipe ingredients, mirroring meal_untracked: planned meals get
+-- them as "Other ingredients" — never allocated, never wishlisted.
+create table if not exists recipe_untracked (
+  id uuid primary key default gen_random_uuid(),
+  recipe_id uuid not null references recipes(id) on delete cascade,
+  name text not null,
+  unit text not null,
+  quantity double precision not null check (quantity > 0),
+  created_at timestamptz not null default now(),
+  unique (recipe_id, name, unit)
+);
+
 -- Web-push registrations for the daily meal-plan notification. One row per
 -- browser device; endpoint is the push service URL and doubles as the PK.
 create table if not exists push_subscriptions (
@@ -223,6 +262,9 @@ alter table meals enable row level security;
 alter table allocations enable row level security;
 alter table meal_wishlist enable row level security;
 alter table meal_untracked enable row level security;
+alter table recipes enable row level security;
+alter table recipe_ingredients enable row level security;
+alter table recipe_untracked enable row level security;
 alter table meal_consumption enable row level security;
 alter table units enable row level security;
 alter table push_subscriptions enable row level security;
@@ -236,6 +278,9 @@ drop policy if exists meals_all on meals;
 drop policy if exists allocations_all on allocations;
 drop policy if exists meal_wishlist_all on meal_wishlist;
 drop policy if exists meal_untracked_all on meal_untracked;
+drop policy if exists recipes_all on recipes;
+drop policy if exists recipe_ingredients_all on recipe_ingredients;
+drop policy if exists recipe_untracked_all on recipe_untracked;
 drop policy if exists meal_consumption_all on meal_consumption;
 drop policy if exists units_all on units;
 drop policy if exists push_subscriptions_all on push_subscriptions;
@@ -249,6 +294,9 @@ create policy meals_all on meals for all to anon, authenticated using (true) wit
 create policy allocations_all on allocations for all to anon, authenticated using (true) with check (true);
 create policy meal_wishlist_all on meal_wishlist for all to anon, authenticated using (true) with check (true);
 create policy meal_untracked_all on meal_untracked for all to anon, authenticated using (true) with check (true);
+create policy recipes_all on recipes for all to anon, authenticated using (true) with check (true);
+create policy recipe_ingredients_all on recipe_ingredients for all to anon, authenticated using (true) with check (true);
+create policy recipe_untracked_all on recipe_untracked for all to anon, authenticated using (true) with check (true);
 create policy meal_consumption_all on meal_consumption for all to anon, authenticated using (true) with check (true);
 create policy units_all on units for all to anon, authenticated using (true) with check (true);
 create policy push_subscriptions_all on push_subscriptions for all to anon, authenticated using (true) with check (true);
@@ -710,7 +758,172 @@ begin
 end;
 $$;
 
--- Returns true if the given unit string is referenced on any row of the six
+-- Plans a meal from a saved recipe and returns the new meal's id. The meal
+-- copies the recipe's name, link and remarks; its photo (if any) is copied
+-- client-side into the meal's own storage folder afterwards, so the two sides
+-- never share a photo_path and deleting one never removes the other's object.
+-- Tracked ingredients are applied the way the planner UI would: whatever is
+-- still unallocated in stock (FEFO pooling irrelevant here — quantities only)
+-- is reserved for the meal via allocations, and the remainder goes to the
+-- meal's to-buy list. Untracked recipe ingredients become the meal's "Other
+-- ingredients". Conflicts merge by adding quantities, so re-applying the same
+-- recipe to a meal it already shaped stacks onto existing rows rather than
+-- clobbering them.
+create or replace function create_meal_from_recipe(p_recipe_id uuid, p_day integer, p_slot text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r record;
+  ing record;
+  v_meal_id uuid;
+  v_item_id uuid;
+  v_avail double precision;
+begin
+  if p_slot not in ('breakfast', 'lunch', 'dinner') or p_day not between 0 and 6 then
+    raise exception 'Invalid day or slot.';
+  end if;
+
+  select * into r from recipes where id = p_recipe_id;
+  if not found then
+    raise exception 'Recipe not found.';
+  end if;
+
+  insert into meals (name, day, slot, recipe_url, remarks)
+  values (r.name, p_day, p_slot, r.recipe_url, r.remarks)
+  returning id into v_meal_id;
+
+  for ing in
+    select ri.allowed_item_id, ri.unit, ri.quantity, ai.name
+    from recipe_ingredients ri
+    join allowed_items ai on ai.id = ri.allowed_item_id
+    where ri.recipe_id = p_recipe_id
+  loop
+    v_item_id := null;
+    select id into v_item_id from items where lower(name) = lower(ing.name);
+    v_avail := 0;
+    if v_item_id is not null then
+      select coalesce(sum(s.quantity), 0) into v_avail
+      from stock_entries s
+      where s.item_id = v_item_id and s.unit = ing.unit
+        and s.consumed_at is null and s.deleted_at is null;
+      v_avail := v_avail - coalesce((
+        select sum(a.quantity)
+        from allocations a
+        join meals m on m.id = a.meal_id
+        where a.item_id = v_item_id and a.unit = ing.unit and m.cooked = false
+      ), 0);
+    end if;
+    if v_avail > 0 then
+      insert into allocations (meal_id, item_id, unit, quantity)
+      values (v_meal_id, v_item_id, ing.unit, least(v_avail, ing.quantity))
+      on conflict (meal_id, item_id, unit) do update
+        set quantity = allocations.quantity + excluded.quantity;
+    end if;
+    if ing.quantity > greatest(v_avail, 0) then
+      insert into meal_wishlist (meal_id, allowed_item_id, unit, quantity)
+      values (v_meal_id, ing.allowed_item_id, ing.unit, ing.quantity - greatest(v_avail, 0))
+      on conflict (meal_id, allowed_item_id, unit) do update
+        set quantity = meal_wishlist.quantity + excluded.quantity;
+    end if;
+  end loop;
+
+  for ing in
+    select name, unit, quantity
+    from recipe_untracked
+    where recipe_id = p_recipe_id
+  loop
+    insert into meal_untracked (meal_id, name, unit, quantity)
+    values (v_meal_id, ing.name, ing.unit, ing.quantity)
+    on conflict (meal_id, name, unit) do update
+      set quantity = meal_untracked.quantity + excluded.quantity;
+  end loop;
+
+  return v_meal_id;
+end;
+$$;
+
+-- Snapshots a planner meal into a saved recipe and returns the recipe's id.
+-- Name, link and remarks are copied; the photo object is copied client-side
+-- into the recipe's own storage folder afterwards. Allocations whose item
+-- name matches an allowed_items entry (case-insensitively) become tracked
+-- recipe ingredients, keeping the allocation's unit and quantity; the rest
+-- become untracked "Other" ingredients. Wishlist rows are tracked by
+-- definition, and the meal's "Other ingredients" carry over verbatim. Same
+-- item + unit rows merge additively, e.g. an allocation plus a wishlist row
+-- for the same grocery collapse into one larger ingredient.
+create or replace function save_meal_to_recipe(p_meal_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_meal record;
+  a record;
+  w record;
+  u record;
+  v_recipe_id uuid;
+  v_allowed_id uuid;
+begin
+  select * into v_meal from meals where id = p_meal_id;
+  if not found then
+    raise exception 'Meal not found.';
+  end if;
+
+  insert into recipes (name, recipe_url, remarks)
+  values (v_meal.name, v_meal.recipe_url, v_meal.remarks)
+  returning id into v_recipe_id;
+
+  for a in
+    select al.unit, al.quantity, i.name
+    from allocations al
+    join items i on i.id = al.item_id
+    where al.meal_id = p_meal_id
+  loop
+    select id into v_allowed_id from allowed_items where lower(name) = lower(a.name);
+    if v_allowed_id is not null then
+      insert into recipe_ingredients (recipe_id, allowed_item_id, unit, quantity)
+      values (v_recipe_id, v_allowed_id, a.unit, a.quantity)
+      on conflict (recipe_id, allowed_item_id, unit) do update
+        set quantity = recipe_ingredients.quantity + excluded.quantity;
+    else
+      insert into recipe_untracked (recipe_id, name, unit, quantity)
+      values (v_recipe_id, a.name, a.unit, a.quantity)
+      on conflict (recipe_id, name, unit) do update
+        set quantity = recipe_untracked.quantity + excluded.quantity;
+    end if;
+  end loop;
+
+  for w in
+    select mw.allowed_item_id, mw.unit, mw.quantity
+    from meal_wishlist mw
+    where mw.meal_id = p_meal_id
+  loop
+    insert into recipe_ingredients (recipe_id, allowed_item_id, unit, quantity)
+    values (v_recipe_id, w.allowed_item_id, w.unit, w.quantity)
+    on conflict (recipe_id, allowed_item_id, unit) do update
+      set quantity = recipe_ingredients.quantity + excluded.quantity;
+  end loop;
+
+  for u in
+    select mt.name, mt.unit, mt.quantity
+    from meal_untracked mt
+    where mt.meal_id = p_meal_id
+  loop
+    insert into recipe_untracked (recipe_id, name, unit, quantity)
+    values (v_recipe_id, u.name, u.unit, u.quantity)
+    on conflict (recipe_id, name, unit) do update
+      set quantity = recipe_untracked.quantity + excluded.quantity;
+  end loop;
+
+  return v_recipe_id;
+end;
+$$;
+
+-- Returns true if the given unit string is referenced on any row of the
 -- unit-bearing tables. The client uses this to block rename/delete of a unit
 -- that is still in use, so historical free-text unit values stay consistent.
 create or replace function unit_in_use(p_unit text)
@@ -724,7 +937,9 @@ as $$
       or exists(select 1 from allocations where unit = p_unit)
       or exists(select 1 from meal_consumption where unit = p_unit)
       or exists(select 1 from meal_wishlist where unit = p_unit)
-      or exists(select 1 from meal_untracked where unit = p_unit);
+      or exists(select 1 from meal_untracked where unit = p_unit)
+      or exists(select 1 from recipe_ingredients where unit = p_unit)
+      or exists(select 1 from recipe_untracked where unit = p_unit);
 $$;
 
 grant execute on function get_or_create_item(text) to anon, authenticated;
@@ -735,6 +950,8 @@ grant execute on function clear_purchases() to anon, authenticated;
 grant execute on function remove_stock(uuid, double precision) to anon, authenticated;
 grant execute on function purchase_wishlist(uuid[], double precision[], date, numeric) to anon, authenticated;
 grant execute on function unit_in_use(text) to anon, authenticated;
+grant execute on function create_meal_from_recipe(uuid, integer, text) to anon, authenticated;
+grant execute on function save_meal_to_recipe(uuid) to anon, authenticated;
 
 -- Gatekeeper for the daily meal-plan push, called by the send-meal-push Edge
 -- Function. Computes "now" in the configured timezone and decides whether a

@@ -7,6 +7,7 @@ import type {
   MealUntracked,
   MealWishlist,
   Purchase,
+  Recipe,
   StockEntry,
   Unit,
 } from '../lib/types'
@@ -21,6 +22,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [allocations, setAllocations] = useState<Allocation[]>([])
   const [wishlist, setWishlist] = useState<MealWishlist[]>([])
   const [untracked, setUntracked] = useState<MealUntracked[]>([])
+  const [recipes, setRecipes] = useState<Recipe[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -35,6 +37,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         allocationsData,
         wishlistData,
         untrackedData,
+        recipesData,
       ] = await Promise.all([
         api.fetchAllowedItems(),
         api.fetchUnits(),
@@ -44,6 +47,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         api.fetchAllocations(),
         api.fetchMealWishlist(),
         api.fetchMealUntracked(),
+        api.fetchRecipes(),
       ])
       setAllowedItems(allowedData)
       setUnits(unitsData)
@@ -53,6 +57,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       setAllocations(allocationsData)
       setWishlist(wishlistData)
       setUntracked(untrackedData)
+      setRecipes(recipesData)
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load data')
@@ -81,7 +86,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   return (
     <DataContext.Provider
-        value={{ allowedItems, units, entries, purchases, meals, allocations, wishlist, untracked, loading, error, refresh, run }}
+        value={{ allowedItems, units, entries, purchases, meals, allocations, wishlist, untracked, recipes, loading, error, refresh, run }}
     >
       {children}
     </DataContext.Provider>

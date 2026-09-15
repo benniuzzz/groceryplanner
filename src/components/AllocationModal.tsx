@@ -44,6 +44,7 @@ export function AllocationModal({
   const [unError, setUnError] = useState<string | null>(null)
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
+  const [savedFlash, setSavedFlash] = useState(false)
   const [timeDraft, setTimeDraft] = useState(meal.meal_time ?? '')
   const [peopleDraft, setPeopleDraft] = useState(
     meal.people != null ? String(meal.people) : '',
@@ -153,6 +154,16 @@ export function AllocationModal({
     if (ok) setEditingName(false)
   }
 
+  const snapshotToRecipe = async () => {
+    const ok = await run(async () => {
+      await api.saveMealToRecipe(meal)
+    })
+    if (ok) {
+      setSavedFlash(true)
+      window.setTimeout(() => setSavedFlash(false), 2500)
+    }
+  }
+
   const changeTime = (v: string | null) => {
     setTimeDraft(v ?? '')
     if (v === (meal.meal_time ?? null)) return
@@ -185,7 +196,7 @@ export function AllocationModal({
     if (!file || uploading) return
     setUploading(true)
     try {
-      const path = await api.uploadMealPhoto(meal.id, file)
+      const path = await api.uploadPhoto(meal.id, file)
       const oldPath = meal.photo_path
       // Commit the path to the row first: while the meal points at the new
       // photo, losing the old one to a failed delete is only a storage
@@ -245,6 +256,21 @@ export function AllocationModal({
                       : 'Allocate groceries from your inventory, add what you still need to buy, or note other untracked ingredients.'
                   }
                 />
+                <button
+                  className="shrink-0 rounded px-1 py-0.5 text-sm text-slate-400 hover:bg-slate-100 hover:text-emerald-600 dark:hover:bg-slate-800 dark:hover:text-emerald-400"
+                  onClick={() => void snapshotToRecipe()}
+                  title="Save to Recipes (reusable, without time and headcount)"
+                  aria-label="Save to Recipes"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                  </svg>
+                </button>
+                {savedFlash && (
+                  <span className="shrink-0 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    Saved
+                  </span>
+                )}
                 <button
                   className="shrink-0 rounded px-1 py-0.5 text-sm text-slate-400 hover:bg-slate-100 hover:text-emerald-600 dark:hover:bg-slate-800 dark:hover:text-emerald-400"
                   onClick={() => {

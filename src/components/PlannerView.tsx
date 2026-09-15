@@ -8,12 +8,14 @@ import {
   SLOT_LABELS,
   type InventoryRow,
   type MealSlot,
+  type Recipe,
 } from '../lib/types'
 import { useAppData } from '../hooks/useAppData'
 import { MealCard } from './MealCard'
 import { AllocationModal } from './AllocationModal'
 import { ExpiryBadge } from './ExpiryBadge'
 import { InfoTooltip } from './InfoTooltip'
+import { RecipePickerModal } from './RecipePickerModal'
 import { TodayView } from './TodayView'
 import { inputCls, enterStagger } from './ui'
 
@@ -21,6 +23,10 @@ export function PlannerView() {
   const { meals, allocations, entries, wishlist, untracked, run } = useAppData()
   const [selectedMealId, setSelectedMealId] = useState<string | null>(null)
   const [addingCell, setAddingCell] = useState<{
+    day: number
+    slot: MealSlot
+  } | null>(null)
+  const [choosingCell, setChoosingCell] = useState<{
     day: number
     slot: MealSlot
   } | null>(null)
@@ -65,6 +71,16 @@ export function PlannerView() {
       setAddingCell(null)
       clearNewMealFields()
     }
+  }
+
+  // Two-step add: pick a saved recipe (its ingredients get allocated from
+  // stock / wishlisted by create_meal_from_recipe) or fall through to the
+  // inline input for a brand-new meal, seeded with whatever was typed.
+  const planFromRecipe = async (recipe: Recipe, day: number, slot: MealSlot) => {
+    setChoosingCell(null)
+    await run(async () => {
+      await api.applyRecipeToMeal(recipe, day, slot)
+    })
   }
 
   const clearWeek = async () => {
@@ -274,7 +290,7 @@ export function PlannerView() {
                         <button
                           className="w-full rounded-md border border-dashed border-slate-300 py-1.5 text-sm text-slate-400 hover:border-emerald-400 hover:text-emerald-600 dark:border-slate-600 dark:text-slate-500 dark:hover:border-emerald-500 dark:hover:text-emerald-400"
                           onClick={() => {
-                            setAddingCell({ day, slot })
+                            setChoosingCell({ day, slot })
                             clearNewMealFields()
                           }}
                         >
@@ -292,6 +308,23 @@ export function PlannerView() {
       </section>
 
       <LeftoverSidebar rows={leftovers} />
+
+      {choosingCell && (
+        <RecipePickerModal
+          day={choosingCell.day}
+          slot={choosingCell.slot}
+          onPick={(recipe) =>
+            void planFromRecipe(recipe, choosingCell.day, choosingCell.slot)
+          }
+          onNewMeal={(seed) => {
+            const cell = choosingCell
+            setChoosingCell(null)
+            setAddingCell(cell)
+            setNewMealName(seed)
+          }}
+          onClose={() => setChoosingCell(null)}
+        />
+      )}
 
       {selectedMeal && (
         <AllocationModal
