@@ -71,7 +71,7 @@ export function RecipesView() {
 
         <div className="animate-fade-up mt-3 flex items-center gap-2" style={{ animationDelay: '60ms' }}>
           <input
-            className={`${inputCls} max-w-md flex-1 px-2.5 py-1.5 text-sm`}
+            className={`${inputCls} min-w-0 max-w-md flex-1 px-2.5 py-1.5 text-sm`}
             placeholder="New recipe name…"
             aria-label="New recipe name"
             value={newName}
@@ -82,7 +82,7 @@ export function RecipesView() {
             }}
           />
           <button
-            className={btnPrimary}
+            className={`${btnPrimary} shrink-0`}
             disabled={creating || !newName.trim()}
             onClick={() => void createRecipe()}
           >
@@ -90,7 +90,7 @@ export function RecipesView() {
           </button>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
           {filtered.map((recipe, i) => {
             const names = ingNames(recipe.id)
             const preview = names.slice(0, 3).join(' · ')
@@ -98,7 +98,7 @@ export function RecipesView() {
               <div
                 key={recipe.id}
                 onClick={() => setSelectedRecipeId(recipe.id)}
-                className={`animate-fade-up cursor-pointer rounded-xl border bg-white p-3 shadow-sm transition-colors hover:border-emerald-400 dark:bg-slate-900 ${
+                className={`animate-fade-up min-w-0 cursor-pointer rounded-xl border bg-white p-3 shadow-sm transition-colors hover:border-emerald-400 dark:bg-slate-900 ${
                   recipe.id === selectedRecipeId
                     ? 'border-emerald-500 dark:border-emerald-500'
                     : 'border-slate-200 dark:border-slate-800'
